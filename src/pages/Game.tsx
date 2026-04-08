@@ -16,6 +16,7 @@ interface RoomUser {
   status?: 'online' | 'away' | 'inactive';
 }
 
+// 游戏核心组件：负责整个剧本杀游戏环节（阅读剧本、搜证、讨论、复盘），管理实时通讯与状态
 export default function Game() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -30,6 +31,8 @@ export default function Game() {
   const [clueSearchQuery, setClueSearchQuery] = useState('');
   const [clueFilterType, setClueFilterType] = useState<'all' | 'location' | 'item' | 'character'>('all');
   
+  // ================== 游戏流程控制状态 ==================
+  // 管理当前的进度阶段、是否房主、投票数据、倒计时等
   // Game Flow States
   const [isHost, setIsHost] = useState(false); // Toggle for testing DM mode
   const [gamePhase, setGamePhase] = useState<'reading' | 'searching' | 'discussing' | 'voting' | 'reveal'>('reading');
@@ -38,6 +41,8 @@ export default function Game() {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
   
+  // ================== 线索与搜证系统 ==================
+  // 控制搜证行动点数(AP)、拥有的线索、公开的线索以及搜证视图
   // Clue System States
   const [clueSubTab, setClueSubTab] = useState<'search' | 'mine' | 'public'>('search');
   const [searchMode, setSearchMode] = useState<'map' | 'list'>('map');
@@ -65,6 +70,7 @@ export default function Game() {
     { id: 'm1', senderId: 'sys', senderName: '系统', text: '欢迎来到剧本杀房间！', isPrivate: false }
   ]);
   
+  // 使用 useMemo 对原始剧本中的线索进行预处理，提取出不重复的可搜证目标点（如某人、某地、某物）
   // Extract unique targets from script clues
   const initialTargets = useMemo(() => {
     if (!script?.clues) return [];
@@ -83,6 +89,8 @@ export default function Game() {
 
   const [searchableTargets, setSearchableTargets] = useState(initialTargets);
   
+  // ================== 实时通讯服务状态 ==================
+  // 维护 Socket 连接、Peer 实例以及在线用户列表
   // Real-time states
   const [socket, setSocket] = useState<Socket | null>(null);
   const [peer, setPeer] = useState<Peer | null>(null);
