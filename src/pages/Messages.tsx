@@ -1,10 +1,40 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, UserPlus, MessageSquare, Users, Bell } from 'lucide-react';
+import { Search, UserPlus, MessageSquare, Users, Bell, Megaphone, ShieldAlert, Check, X, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PublicProfileModal from '@/src/components/PublicProfileModal';
 
 const mockChats = [
+  {
+    id: 'sys_1',
+    user: '系统通知',
+    avatar: 'sys', // Special indicator for system icon
+    lastMessage: '您的账号在异地登录，请注意账号安全。',
+    time: '刚刚',
+    unread: 1,
+    isOnline: false,
+    isSystem: true
+  },
+  {
+    id: 'sys_2',
+    user: '官方公告',
+    avatar: 'announcement', // Special indicator for announcement
+    lastMessage: 'V1.2.0 版本更新：全新《良辰吉日》剧本上线！',
+    time: '10:00',
+    unread: 0,
+    isOnline: false,
+    isSystem: true
+  },
+  {
+    id: 'group_1',
+    user: '硬核推土机交流群 (128)',
+    avatar: 'group', // Special indicator for group
+    lastMessage: '玩家A: 这个密室的设计绝了！',
+    time: '14:30',
+    unread: 5,
+    isOnline: false,
+    isGroup: true
+  },
   {
     id: 'c1',
     user: '推理狂魔',
@@ -39,6 +69,18 @@ const mockFriends = [
   { id: 'f2', name: '情感本爱好者', avatar: 'https://picsum.photos/seed/p2/40/40', status: '离线', isPlaying: false },
   { id: 'f3', name: '硬核玩家', avatar: 'https://picsum.photos/seed/u3/40/40', status: '在线', isPlaying: false },
   { id: 'f4', name: '剧本杀老司机', avatar: 'https://picsum.photos/seed/u1/40/40', status: '在线', isPlaying: true },
+];
+
+const mockVisitors = [
+  { id: 'v1', name: '访客A', avatar: 'https://picsum.photos/seed/v1/40/40', time: '10分钟前' },
+  { id: 'v2', name: '访客B', avatar: 'https://picsum.photos/seed/v2/40/40', time: '1小时前' },
+  { id: 'v3', name: '访客C', avatar: 'https://picsum.photos/seed/v3/40/40', time: '昨天' },
+  { id: 'v4', name: '访客D', avatar: 'https://picsum.photos/seed/v4/40/40', time: '3天前' },
+];
+
+const mockFriendRequests = [
+  { id: 'req1', name: '小白求带', avatar: 'https://picsum.photos/seed/req1/40/40', message: '大佬带带我，刚玩这个APP' },
+  { id: 'req2', name: '夜行者', avatar: 'https://picsum.photos/seed/req2/40/40', message: '上次一起玩过《诡影》，加个好友' },
 ];
 
 export default function Messages() {
@@ -96,11 +138,25 @@ export default function Messages() {
         {activeTab === 'chats' ? (
           <div className="space-y-2">
             {mockChats.map(chat => (
-              <div key={chat.id} className="bg-white p-3 rounded-2xl flex items-center gap-3 active:bg-neutral-50 transition-colors cursor-pointer">
+              <div key={chat.id} className={cn("bg-white p-3 rounded-2xl flex items-center gap-3 active:bg-neutral-50 transition-colors cursor-pointer", chat.isSystem && "bg-blue-50/30 border border-blue-100")}>
                 <div className="relative shrink-0">
-                  <img src={chat.avatar} alt={chat.user} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  {chat.avatar === 'sys' ? (
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                      <ShieldAlert className="w-6 h-6" />
+                    </div>
+                  ) : chat.avatar === 'announcement' ? (
+                    <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+                      <Megaphone className="w-6 h-6" />
+                    </div>
+                  ) : chat.avatar === 'group' ? (
+                    <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                      <Users className="w-6 h-6" />
+                    </div>
+                  ) : (
+                    <img src={chat.avatar} alt={chat.user} className="w-12 h-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                  )}
                   {chat.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full translate-x-1 translate-y-1" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -121,76 +177,115 @@ export default function Messages() {
             ))}
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl overflow-hidden">
-              <div className="p-3 flex items-center gap-3 border-b border-neutral-100 active:bg-neutral-50 transition-colors cursor-pointer">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
-                  <UserPlus className="w-5 h-5" />
-                </div>
-                <span className="font-bold text-neutral-900 text-sm">新的朋友</span>
+          <div className="space-y-6">
+            {/* 最近访客 (Horizontal Scroll) */}
+            <div>
+              <div className="flex items-center justify-between px-2 mb-3">
+                <h3 className="text-xs font-bold text-neutral-500 uppercase flex items-center gap-1">
+                  <Eye className="w-3.5 h-3.5" />
+                  最近访客
+                </h3>
+                <span className="text-[10px] text-neutral-400">全部</span>
               </div>
-              <div className="p-3 flex items-center gap-3 active:bg-neutral-50 transition-colors cursor-pointer">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                  <Users className="w-5 h-5" />
-                </div>
-                <span className="font-bold text-neutral-900 text-sm">我的群组</span>
+              <div className="flex gap-3 overflow-x-auto pb-2 px-1 snap-x hide-scrollbar">
+                {mockVisitors.map(visitor => (
+                  <div key={visitor.id} className="flex flex-col items-center gap-1.5 snap-start shrink-0">
+                    <img src={visitor.avatar} alt={visitor.name} className="w-12 h-12 rounded-full object-cover border border-neutral-100 shadow-sm" referrerPolicy="no-referrer" />
+                    <span className="text-[10px] text-neutral-600 font-medium w-12 truncate text-center">{visitor.name}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold text-neutral-400 px-2 uppercase">在线好友 ({mockFriends.filter(f => f.status === '在线').length})</h3>
-              {mockFriends.map(friend => (
-                <div 
-                  key={friend.id} 
-                  onClick={() => setSelectedProfileUser({
-                    id: friend.id,
-                    name: friend.name,
-                    avatar: friend.avatar,
-                    level: 12,
-                    bio: '这个人很懒，什么都没写。',
-                    stats: { played: 45, mvps: 12, winRate: '85%' },
-                    achievements: ['逻辑鬼才', '戏精附体'],
-                    favoriteRoles: ['凶手', '侦探']
-                  })}
-                  className="bg-white p-3 rounded-2xl flex items-center gap-3 active:bg-neutral-50 transition-colors cursor-pointer"
-                >
-                  <div className="relative shrink-0">
-                    <img src={friend.avatar} alt={friend.name} className={cn("w-10 h-10 rounded-full object-cover", friend.status === '离线' && "grayscale")} referrerPolicy="no-referrer" />
-                    <div className={cn("absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full", friend.status === '在线' ? "bg-green-500" : "bg-neutral-300")} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-neutral-900 text-sm truncate">{friend.name}</h3>
-                    <p className="text-[10px] text-neutral-500 flex items-center gap-1">
-                      {friend.isPlaying ? (
-                        <span className="text-purple-600 font-medium">游戏中 - 剧本杀</span>
-                      ) : friend.status === '在线' ? (
-                        <span className="text-green-600 font-medium">在线</span>
-                      ) : (
-                        <span>离线</span>
-                      )}
-                    </p>
-                  </div>
-                  {friend.status === '在线' && !friend.isPlaying && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        alert('邀请已发送！');
-                      }}
-                      className="shrink-0 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors"
-                    >
-                      邀请组局
-                    </button>
-                  )}
-                  {friend.isPlaying && (
-                    <button 
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 px-3 py-1.5 bg-neutral-100 text-neutral-500 text-xs font-bold rounded-lg cursor-not-allowed"
-                    >
-                      游戏中
-                    </button>
-                  )}
+            {/* 好友请求 */}
+            {mockFriendRequests.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-neutral-500 px-2 mb-3 uppercase flex items-center gap-1">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  好友请求
+                </h3>
+                <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-neutral-100">
+                  {mockFriendRequests.map((req, i) => (
+                    <div key={req.id} className={cn("p-3 flex items-center gap-3", i !== mockFriendRequests.length - 1 && "border-b border-neutral-50")}>
+                      <img src={req.avatar} alt={req.name} className="w-10 h-10 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-neutral-900 text-sm truncate">{req.name}</h4>
+                        <p className="text-[10px] text-neutral-500 truncate">{req.message}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-colors">
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button className="w-8 h-8 rounded-full bg-neutral-50 text-neutral-400 flex items-center justify-center hover:bg-neutral-100 hover:text-neutral-600 transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* 在线好友列表 */}
+            <div>
+              <h3 className="text-xs font-bold text-neutral-500 px-2 mb-3 uppercase flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" />
+                在线好友 ({mockFriends.filter(f => f.status === '在线').length})
+              </h3>
+              <div className="space-y-2">
+                {mockFriends.map(friend => (
+                  <div
+                    key={friend.id}
+                    onClick={() => setSelectedProfileUser({
+                      id: friend.id,
+                      name: friend.name,
+                      avatar: friend.avatar,
+                      level: 12,
+                      bio: '这个人很懒，什么都没写。',
+                      stats: { played: 45, mvps: 12, winRate: '85%' },
+                      achievements: ['逻辑鬼才', '戏精附体'],
+                      favoriteRoles: ['凶手', '侦探']
+                    })}
+                    className="bg-white p-3 rounded-2xl flex items-center gap-3 shadow-sm border border-neutral-100 active:bg-neutral-50 transition-colors cursor-pointer"
+                  >
+                    <div className="relative shrink-0">
+                      <img src={friend.avatar} alt={friend.name} className={cn("w-10 h-10 rounded-full object-cover", friend.status === '离线' && "grayscale")} referrerPolicy="no-referrer" />
+                      <div className={cn("absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full", friend.status === '在线' ? "bg-green-500" : "bg-neutral-300")} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-neutral-900 text-sm truncate">{friend.name}</h3>
+                      <p className="text-[10px] text-neutral-500 flex items-center gap-1">
+                        {friend.isPlaying ? (
+                          <span className="text-purple-600 font-medium">游戏中 - 剧本杀</span>
+                        ) : friend.status === '在线' ? (
+                          <span className="text-green-600 font-medium">在线</span>
+                        ) : (
+                          <span>离线</span>
+                        )}
+                      </p>
+                    </div>
+                    {friend.status === '在线' && !friend.isPlaying && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          alert('邀请已发送！');
+                        }}
+                        className="shrink-0 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors"
+                      >
+                        邀请组局
+                      </button>
+                    )}
+                    {friend.isPlaying && (
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 px-3 py-1.5 bg-neutral-100 text-neutral-500 text-xs font-bold rounded-lg cursor-not-allowed"
+                      >
+                        游戏中
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
