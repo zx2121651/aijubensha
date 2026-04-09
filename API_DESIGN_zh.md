@@ -74,3 +74,20 @@
 *   `GET /api/admin/notices`: 获取系统公告/轮播图配置列表。
 *   `POST /api/admin/notices`: 发布全服系统广播或横幅。
 *   `GET /api/admin/store/items`: 管理商店出售的虚拟道具列表与定价。
+
+---
+
+## 三、DM (主持人) 专用接口需求
+
+剧本杀 DM（主持人）在游戏中拥有上帝视角，需要能够自由把控游戏进度和玩家行为。以下是供 DM 客户端或界面专用的接口。
+
+### 1. 房间把控与上帝视角
+*   `GET /api/dm/rooms/:id/state`: 获取房间的上帝视角全景状态（包括所有玩家隐藏的线索、真实的身份底牌、当前实际进行阶段）。
+*   `POST /api/dm/rooms/:id/phase`: DM 手动修改/推进游戏当前阶段（例如：强行从搜证环节进入圆桌讨论环节）。
+
+### 2. 玩家状态管理
+*   `POST /api/dm/rooms/:id/players/:playerId/status`: DM 手动更改玩家状态（如强制禁言、踢出房间或标记角色为“死亡”）。
+
+### 3. 线索与道具调控
+*   `POST /api/dm/rooms/:id/clues/distribute`: DM 手动向指定玩家发放特定线索（例如触发了隐藏剧情后发放彩蛋线索）。
+*   `POST /api/dm/rooms/:id/clues/revoke`: DM 强制收回玩家手上的特定线索。
