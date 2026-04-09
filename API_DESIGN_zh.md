@@ -159,3 +159,51 @@
 *   `POST /api/dm/rooms/:id/clues/distribute`: 定向私发线索
 *   `POST /api/dm/rooms/:id/clues/revoke`: 强制收缴线索
 *   `POST /api/dm/rooms/:id/audio/play`: 操控全房间播放特定 BGM 或恐怖音效
+
+---
+
+## 四、剧本创作者编辑器端 (Creator Platform) 需求接口
+
+为了允许外部作者、工作室自主创作和上传剧本，系统提供了一整套在线的“可视化剧本编辑器”所需接口。这些接口涵盖了从立项、剧本编写、逻辑图编排到素材上传、发行的全生命周期。
+
+### 1. 创作者工作台与项目管理 (Workspace & Projects)
+*   `GET /api/editor/projects`: 获取当前作者参与的所有剧本项目列表
+*   `POST /api/editor/projects`: 新建立项一个新的剧本工程
+*   `GET /api/editor/projects/:id/dashboard`: 获取某项目的完整统计信息（编写进度、字数、合作者）
+*   `PUT /api/editor/projects/:id/settings`: 修改剧本项目的基础设置（名称、封面、标签、人数限制等）
+*   `POST /api/editor/projects/:id/collaborators`: 邀请其他作者或监制参与协作
+*   `DELETE /api/editor/projects/:id/collaborators/:userId`: 移除协作成员
+
+### 2. 人物与角色配置 (Characters Config)
+*   `GET /api/editor/projects/:id/characters`: 获取项目内所有设定的角色列表
+*   `POST /api/editor/projects/:id/characters`: 新增一个可选角色
+*   `PUT /api/editor/projects/:id/characters/:charId`: 更新特定角色的基础设定（剧本大纲、背景故事、性别、技能）
+*   `POST /api/editor/projects/:id/characters/:charId/avatar`: 上传/更新角色专属头像或立绘
+
+### 3. 剧本内容与节点编排 (Content & Node Logic)
+由于电子剧本杀常常包含多阶段（Act）和分支逻辑，编辑器使用“节点图”（Node Graph）的方式来管理。
+*   `GET /api/editor/projects/:id/acts`: 获取所有的剧情阶段划分
+*   `POST /api/editor/projects/:id/acts`: 新增一个剧情阶段（如：“第一幕：破冰”）
+*   `PUT /api/editor/projects/:id/acts/:actId/nodes`: 批量保存该阶段内剧情节点图的结构与连接关系
+*   `POST /api/editor/projects/:id/nodes/text`: 添加或更新某个文本阅读节点的内容（作者在这里写几十万字的本子内容）
+*   `POST /api/editor/projects/:id/nodes/choice`: 配置某个分支选择节点（选项A跳到节点X，选项B跳到节点Y）
+*   `POST /api/editor/projects/:id/nodes/event`: 触发特定事件节点（例如全员扣除血量，或者触发特定 BGM）
+
+### 4. 搜证与线索系统 (Clues & Investigation)
+*   `GET /api/editor/projects/:id/investigations`: 获取地图与搜证轮次配置
+*   `POST /api/editor/projects/:id/investigations`: 创建新的搜证轮次/地图
+*   `POST /api/editor/projects/:id/investigations/:invId/targets`: 配置地图上的可搜查点（如“凶案现场的床底”）
+*   `GET /api/editor/projects/:id/clues`: 获取全局线索库
+*   `POST /api/editor/projects/:id/clues`: 录入一条新的线索（包含线索描述、图片、强制公开属性、关联搜查点）
+*   `PUT /api/editor/projects/:id/clues/:clueId`: 更新特定线索的内容
+
+### 5. 多媒体素材管理 (Media Assets)
+*   `GET /api/editor/projects/:id/assets`: 分页或分类拉取已上传的素材库（BGM、音效、插画、线索卡图）
+*   `POST /api/editor/projects/:id/assets/upload`: 上传素材（支持分片大文件上传），返回素材 CDN 链接
+*   `DELETE /api/editor/projects/:id/assets/:assetId`: 删除未使用的高空间占用素材
+
+### 6. 测试与发行 (Test & Publish)
+*   `POST /api/editor/projects/:id/simulate`: 在线跑团模拟器，自动检测节点死循环和线索遗漏
+*   `POST /api/editor/projects/:id/publish-review`: 提交该剧本给官方审核（由 B 端审核人员接收）
+*   `GET /api/editor/projects/:id/versions`: 获取该剧本的历史发行版本列表
+*   `POST /api/editor/projects/:id/rollback`: 回滚到之前的历史编写节点

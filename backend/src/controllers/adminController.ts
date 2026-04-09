@@ -1,141 +1,141 @@
 import { Request, Response } from 'express';
+import { prisma } from '../db/prisma';
 
-export const getDashboardStats = (req: Request, res: Response) => {
-  res.json({ message: '获取大盘统计数据 (Admin)', data: { dau: 1200, revenue: 50000 } });
-};
+// =======================
+// 数据大盘模块
+// =======================
+export const getDashboardStats = async (req: Request, res: Response) => {
+  const [userCount, roomCount, orderTotal] = await Promise.all([
+    prisma.user.count(),
+    prisma.room.count({ where: { NOT: { phase: 'FINISHED' } } }),
+    prisma.order.aggregate({ where: { status: 'PAID' }, _sum: { amount: true } })
+  ]);
 
-export const getUsers = (req: Request, res: Response) => {
-  res.json({ message: '获取平台所有用户列表 (Admin)', data: [] });
-};
-
-export const banUser = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `封禁用户操作 (Admin) - ID: ${id}`, status: 'success' });
-};
-
-export const getScripts = (req: Request, res: Response) => {
-  res.json({ message: '获取所有剧本管理列表 (Admin)', data: [] });
-};
-
-export const updateScriptStatus = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `切换剧本上下架状态 (Admin) - ID: ${id}`, status: 'success' });
-};
-
-export const getActiveRooms = (req: Request, res: Response) => {
-  res.json({ message: '获取当前活跃游戏房间列表 (Admin)', data: [] });
+  res.json({
+    message: '大盘统计',
+    data: {
+      totalUsers: userCount,
+      activeRooms: roomCount,
+      totalRevenue: orderTotal._sum.amount || 0
+    }
+  });
 };
 
-export const dismissRoom = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `强制解散异常房间 (Admin) - ID: ${id}`, status: 'success' });
+export const getDashboardCharts = (req: Request, res: Response) => res.json({ data: [] });
+
+// =======================
+// 用户管理模块
+// =======================
+export const getUsers = async (req: Request, res: Response) => {
+  const users = await prisma.user.findMany({
+    select: { id: true, nickname: true, phone: true, role: true, status: true, createdAt: true }
+  });
+  res.json({ data: users });
 };
 
-// --- 大盘模块扩展 ---
-export const getDashboardCharts = (req: Request, res: Response) => {
-  res.json({ message: '获取大盘图表数据 (Admin)', data: [] });
+export const getUserDetails = async (req: Request, res: Response) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.params.id },
+    include: { _count: { select: { playedRooms: true, orders: true } } }
+  });
+  res.json({ data: user });
 };
 
-// --- 用户管理模块扩展 ---
-export const getUserDetails = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `获取特定用户的详细数据 (Admin) - ID: ${id}`, data: {} });
+export const banUser = async (req: Request, res: Response) => {
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { status: 'BANNED' }
+  });
+  res.json({ message: '用户已封禁', data: user });
 };
 
-export const grantUserAsset = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `赠送/扣除用户的虚拟资产 (Admin) - ID: ${id}`, status: 'success' });
+export const grantUserAsset = async (req: Request, res: Response) => {
+  const { amount } = req.body;
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { coins: { increment: amount } }
+  });
+  res.json({ message: '资产发放成功', data: user });
 };
 
-// --- 剧本模块扩展 ---
-export const createScript = (req: Request, res: Response) => {
-  res.json({ message: '录入新剧本信息 (Admin)', status: 'success' });
+// =======================
+// 剧本内容管理模块
+// =======================
+export const getScripts = async (req: Request, res: Response) => {
+  const scripts = await prisma.script.findMany();
+  res.json({ data: scripts });
 };
 
-export const updateScript = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `编辑修改剧本信息 (Admin) - ID: ${id}`, status: 'success' });
+export const createScript = async (req: Request, res: Response) => {
+  const script = await prisma.script.create({ data: req.body });
+  res.json({ message: '剧本录入成功', data: script });
 };
 
-// --- 房间监控扩展 ---
-export const getRoomLogs = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `获取房间操作日志与聊天记录流水 (Admin) - ID: ${id}`, data: [] });
+export const updateScript = async (req: Request, res: Response) => {
+  const script = await prisma.script.update({ where: { id: req.params.id }, data: req.body });
+  res.json({ message: '剧本更新成功', data: script });
 };
 
-// --- 社区审核模块 ---
-export const getAuditPosts = (req: Request, res: Response) => {
-  res.json({ message: '获取待审核/被举报的社区帖子列表 (Admin)', data: [] });
+export const updateScriptStatus = async (req: Request, res: Response) => {
+  const { status } = req.body;
+  const script = await prisma.script.update({ where: { id: req.params.id }, data: { status } });
+  res.json({ message: '状态切换成功', data: script });
 };
 
-export const handleAuditPostAction = (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.json({ message: `处理举报帖子操作 (Admin) - PostID: ${id}`, status: 'success' });
+// =======================
+// 房间与游戏监控模块
+// =======================
+export const getActiveRooms = async (req: Request, res: Response) => {
+  const rooms = await prisma.room.findMany({
+    where: { NOT: { phase: 'FINISHED' } },
+    include: { script: { select: { title: true } }, hostDm: { select: { nickname: true } } }
+  });
+  res.json({ data: rooms });
 };
 
-export const getAuditReviews = (req: Request, res: Response) => {
-  res.json({ message: '获取剧本评论区的审核列表 (Admin)', data: [] });
+export const dismissRoom = async (req: Request, res: Response) => {
+  const room = await prisma.room.update({
+    where: { id: req.params.id },
+    data: { phase: 'FINISHED', finishedAt: new Date() }
+  });
+  res.json({ message: '房间强制解散成功', data: room });
 };
 
-// --- 系统与运营配置模块 ---
-export const getSystemNotices = (req: Request, res: Response) => {
-  res.json({ message: '获取系统公告/轮播图配置列表 (Admin)', data: [] });
+export const getRoomLogs = (req: Request, res: Response) => res.json({ data: [] });
+
+// =======================
+// 社区审核模块
+// =======================
+export const getAuditPosts = async (req: Request, res: Response) => {
+  const posts = await prisma.post.findMany({ where: { status: 'PENDING' } });
+  res.json({ data: posts });
 };
 
-export const createSystemNotice = (req: Request, res: Response) => {
-  res.json({ message: '发布全服系统广播/公告 (Admin)', status: 'success' });
+export const handleAuditPostAction = async (req: Request, res: Response) => {
+  const { action } = req.body;
+  const post = await prisma.post.update({
+    where: { id: req.params.id },
+    data: { status: action } // ACCEPTED / REJECTED
+  });
+  res.json({ message: '审核操作成功', data: post });
 };
 
-export const getStoreItems = (req: Request, res: Response) => {
-  res.json({ message: '获取商店道具与定价列表 (Admin)', data: [] });
-};
-
-// --- RBAC 权限与角色管控 ---
-export const getRoles = (req: Request, res: Response) => {
-  res.json({ message: '获取后台角色配置列表 (Admin)', data: [] });
-};
-export const manageRoles = (req: Request, res: Response) => {
-  res.json({ message: '添加/编辑管理角色及其权限点 (Admin)', status: 'success' });
-};
-export const getManagers = (req: Request, res: Response) => {
-  res.json({ message: '获取后台管理员账号列表 (Admin)', data: [] });
-};
-export const manageManagers = (req: Request, res: Response) => {
-  res.json({ message: '新增或禁用管理员账号 (Admin)', status: 'success' });
-};
-
-// --- 财务与订单管理 ---
-export const getFinanceOrders = (req: Request, res: Response) => {
-  res.json({ message: '获取全平台充值与消费订单明细 (Admin)', data: [] });
-};
-export const refundOrder = (req: Request, res: Response) => {
-  res.json({ message: '处理用户退款申请 (Admin)', status: 'success' });
-};
-export const getWithdrawals = (req: Request, res: Response) => {
-  res.json({ message: '获取提现申请列表 (Admin)', data: [] });
-};
-export const auditWithdrawal = (req: Request, res: Response) => {
-  res.json({ message: '审批提现申请 (Admin)', status: 'success' });
-};
-
-// --- 营销与活动中心 ---
-export const getBanners = (req: Request, res: Response) => {
-  res.json({ message: '获取 App 首页轮播图配置 (Admin)', data: [] });
-};
-export const updateBanners = (req: Request, res: Response) => {
-  res.json({ message: '更新轮播图 (Admin)', status: 'success' });
-};
-export const getCoupons = (req: Request, res: Response) => {
-  res.json({ message: '获取优惠券/折扣活动列表 (Admin)', data: [] });
-};
-export const issueCoupons = (req: Request, res: Response) => {
-  res.json({ message: '向全服或指定人群派发优惠券 (Admin)', status: 'success' });
-};
-
-// --- 系统日志与安全 ---
-export const getSystemLogs = (req: Request, res: Response) => {
-  res.json({ message: '获取管理员的操作审计日志 (Admin)', data: [] });
-};
-export const getSystemErrors = (req: Request, res: Response) => {
-  res.json({ message: '获取应用运行时的错误报警记录 (Admin)', data: [] });
-};
+// 预留未完全实现的空壳接口
+export const getAuditReviews = (req: Request, res: Response) => res.json({ data: [] });
+export const getSystemNotices = (req: Request, res: Response) => res.json({ data: [] });
+export const createSystemNotice = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getStoreItems = (req: Request, res: Response) => res.json({ data: [] });
+export const getRoles = (req: Request, res: Response) => res.json({ data: [] });
+export const manageRoles = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getManagers = (req: Request, res: Response) => res.json({ data: [] });
+export const manageManagers = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getFinanceOrders = (req: Request, res: Response) => res.json({ data: [] });
+export const refundOrder = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getWithdrawals = (req: Request, res: Response) => res.json({ data: [] });
+export const auditWithdrawal = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getBanners = (req: Request, res: Response) => res.json({ data: [] });
+export const updateBanners = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getCoupons = (req: Request, res: Response) => res.json({ data: [] });
+export const issueCoupons = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getSystemLogs = (req: Request, res: Response) => res.json({ data: [] });
+export const getSystemErrors = (req: Request, res: Response) => res.json({ data: [] });

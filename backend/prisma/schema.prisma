@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------
+// 用户体系 (User & Auth & Assets)
+// ------------------------------------------
+model User {
+  id             String    @id @default(uuid())
+  phone          String?   @unique
+  email          String?   @unique
+  passwordHash   String
+  nickname       String
+  avatar         String?
+  role           Role      @default(PLAYER)
+  status         UserStatus @default(NORMAL)
+
+  // 钱包与资产
+  coins          Float     @default(0)
+  balance        Float     @default(0)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // 关系映射
+  hostedRooms    Room[]    @relation("DmToRoom")
+  playedRooms    RoomPlayer[]
+  orders         Order[]
+  posts          Post[]
+  postComments   PostComment[]
+  createdClubs   Club[]    @relation("ClubCreator")
+  clubMemberships ClubMember[]
+  editorProjects EditorProject[] @relation("ProjectCollaborators")
+  ownedEditorProjects EditorProject[] @relation("ProjectOwner")
+  friendshipsInitiated Friendship[] @relation("UserFriendInitiator")
+  friendshipsReceived Friendship[] @relation("UserFriendReceiver")
+}
+
+enum Role {
+  PLAYER
+  DM
+  AUTHOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  NORMAL
+  BANNED
+}
+
+// 好友系统
+model Friendship {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     FriendStatus @default(PENDING)
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation("UserFriendInitiator", fields: [senderId], references: [id])
+  receiver   User     @relation("UserFriendReceiver", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+}
+
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// ------------------------------------------
+// 剧本与资源体系 (Scripts & Resources)
+// ------------------------------------------
+model Script {
+  id          String   @id @default(uuid())
+  title       String
+  cover       String?
+  description String
+  tags        String[]
+  minPlayers  Int
+  maxPlayers  Int
+  difficulty  String
+  duration    String
+  status      ScriptStatus @default(DRAFT)
+  price       Float    @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms       Room[]
+  reviews     ScriptReview[]
+  characters  Character[]
+}
+
+enum ScriptStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  OFFLINE
+}
+
+model Character {
+  id          String   @id @default(uuid())
+  scriptId    String
+  name        String
+  gender      String
+  description String?
+  avatar      String?
+
+  script      Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+}
+
+model ScriptReview {
+  id        String   @id @default(uuid())
+  scriptId  String
+  userId    String
+  rating    Float
+  content   String
+  status    AuditStatus @default(APPROVED)
+  createdAt DateTime @default(now())
+
+  script    Script   @relation(fields: [scriptId], references: [id])
+}
+
+enum AuditStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ------------------------------------------
+// 组局与游戏房间管控 (Room & Play)
+// ------------------------------------------
+model Room {
+  id          String   @id @default(uuid())
+  scriptId    String
+  hostDmId    String?  // 可选，如果没有说明是无DM的自动场
+  name        String
+  isPrivate   Boolean  @default(false)
+  password    String?
+  phase       GamePhase @default(RECRUITING)
+
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  script      Script   @relation(fields: [scriptId], references: [id])
+  hostDm      User?    @relation("DmToRoom", fields: [hostDmId], references: [id])
+  players     RoomPlayer[]
+}
+
+enum GamePhase {
+  RECRUITING   // 招募中
+  PREPARING    // 选角准备
+  READING      // 读本中
+  INVESTIGATING// 搜证中
+  DISCUSSING   // 讨论中
+  VOTING       // 投票结案
+  REVEAL       // 复盘真相
+  FINISHED     // 结束解散
+}
+
+model RoomPlayer {
+  id          String   @id @default(uuid())
+  roomId      String
+  userId      String
+  characterId String?
+  isReady     Boolean  @default(false)
+  isMuted     Boolean  @default(false)
+  isDead      Boolean  @default(false) // 游戏中被杀或出局
+  joinedAt    DateTime @default(now())
+
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// ------------------------------------------
+// 社区与公会 (Community & Clubs)
+// ------------------------------------------
+model Post {
+  id          String   @id @default(uuid())
+  authorId    String
+  title       String
+  content     String
+  images      String[]
+  status      AuditStatus @default(APPROVED)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User     @relation(fields: [authorId], references: [id])
+  comments    PostComment[]
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+}
+
+model Club {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  logo        String?
+  creatorId   String
+  createdAt   DateTime @default(now())
+
+  creator     User     @relation("ClubCreator", fields: [creatorId], references: [id])
+  members     ClubMember[]
+}
+
+model ClubMember {
+  id        String   @id @default(uuid())
+  clubId    String
+  userId    String
+  role      ClubRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum ClubRole {
+  MEMBER
+  VICE_PRESIDENT
+  PRESIDENT
+}
+
+// ------------------------------------------
+// 财务与商城 (Finance & Orders)
+// ------------------------------------------
+model Order {
+  id          String   @id @default(uuid())
+  userId      String
+  type        OrderType
+  amount      Float
+  status      OrderStatus @default(PENDING)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+enum OrderType {
+  RECHARGE
+  WITHDRAW
+  SCRIPT_BUY
+  ITEM_BUY
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+// ------------------------------------------
+// 创作者平台 (Creator Editor)
+// ------------------------------------------
+model EditorProject {
+  id          String   @id @default(uuid())
+  ownerId     String
+  name        String
+  status      ScriptStatus @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner         User     @relation("ProjectOwner", fields: [ownerId], references: [id])
+  collaborators User[]   @relation("ProjectCollaborators")
+}

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import appRoutes from './routes/app';
 import adminRoutes from './routes/admin';
 import dmRoutes from './routes/dm';
+import editorRoutes from './routes/editor';
 
 dotenv.config();
 
@@ -16,14 +17,17 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
-// 挂载前台 App 接口路由
+// 挂载前台 App 接口路由 (C端)
 app.use('/api/app', appRoutes);
 
-// 挂载后台管理系统接口路由
+// 挂载后台管理系统接口路由 (B端)
 app.use('/api/admin', adminRoutes);
 
 // 挂载 DM (主持人) 专用接口路由
 app.use('/api/dm', dmRoutes);
+
+// 挂载剧本创作者编辑器端接口路由 (Creator端)
+app.use('/api/editor', editorRoutes);
 
 // 根路由健康检查
 app.get('/', (req, res) => {
