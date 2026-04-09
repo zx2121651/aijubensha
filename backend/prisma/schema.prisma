@@ -38,6 +38,11 @@ model User {
   ownedEditorProjects EditorProject[] @relation("ProjectOwner")
   friendshipsInitiated Friendship[] @relation("UserFriendInitiator")
   friendshipsReceived Friendship[] @relation("UserFriendReceiver")
+
+  supportTickets SupportTicket[]
+  coupons        Coupon[]
+  dmSchedules    DmSchedule[]       @relation("DmScheduleRel")
+  withdrawals    WithdrawalRequest[] @relation("UserWithdrawalRel")
 }
 
 enum Role {
@@ -279,4 +284,207 @@ model EditorProject {
 
   owner         User     @relation("ProjectOwner", fields: [ownerId], references: [id])
   collaborators User[]   @relation("ProjectCollaborators")
+
+  characters    EditorCharacter[]
+  acts          EditorAct[]
+  investigations EditorInvestigation[]
+  clues         EditorClue[]
+  assets        EditorAsset[]
+}
+
+// ------------------------------------------
+// 扩展：客服与反馈 (Support)
+// ------------------------------------------
+model SupportTicket {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // BUG, COMPLAINT, APPEAL
+  content     String
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Faq {
+  id          String   @id @default(uuid())
+  question    String
+  answer      String
+  category    String
+  orderIndex  Int      @default(0)
+}
+
+// ------------------------------------------
+// 扩展：系统管理与营销 (System & Marketing)
+// ------------------------------------------
+model SystemNotice {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Banner {
+  id          String   @id @default(uuid())
+  imageUrl    String
+  linkUrl     String?
+  position    String   // HOME, STORE, DISCOVER
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Coupon {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  discount    Float
+  minAmount   Float    @default(0)
+  validUntil  DateTime
+  isUsed      Boolean  @default(false)
+  userId      String?
+
+  user        User?    @relation(fields: [userId], references: [id])
+}
+
+model StoreItem {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  imageUrl    String?
+  type        String   // AVATAR_FRAME, CHAT_BUBBLE, PROP
+  isActive    Boolean  @default(true)
+}
+
+// ------------------------------------------
+// 扩展：后台权限与系统日志 (RBAC & Logs)
+// ------------------------------------------
+model RoleConfig {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions String[] // e.g. ["manage_users", "view_financials"]
+  createdAt   DateTime @default(now())
+}
+
+model SystemLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  action      String
+  details     String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+
+model SystemError {
+  id          String   @id @default(uuid())
+  message     String
+  stackTrace  String?
+  service     String
+  createdAt   DateTime @default(now())
+}
+
+// ------------------------------------------
+// 扩展：DM 专属业务 (DM Workbench)
+// ------------------------------------------
+model DmSchedule {
+  id          String   @id @default(uuid())
+  dmId        String
+  startTime   DateTime
+  endTime     DateTime
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt   DateTime @default(now())
+
+  dm          User     @relation("DmScheduleRel", fields: [dmId], references: [id])
+}
+
+model WithdrawalRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Float
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED, PAID
+  method      String   // WECHAT, ALIPAY, BANK
+  accountInfo String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation("UserWithdrawalRel", fields: [userId], references: [id])
+}
+
+// ------------------------------------------
+// 扩展：创作者引擎 (Creator Platform details)
+// ------------------------------------------
+model EditorCharacter {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  gender      String
+  avatar      String?
+  background  String?
+  createdAt   DateTime @default(now())
+
+  project     EditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model EditorAct {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  project     EditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nodes       EditorNode[]
+}
+
+model EditorNode {
+  id          String   @id @default(uuid())
+  actId       String
+  type        String   // TEXT, CHOICE, EVENT
+  content     String
+  options     String?  // JSON stringified options
+  nextNodes   String?  // JSON stringified connections
+
+  act         EditorAct @relation(fields: [actId], references: [id], onDelete: Cascade)
+}
+
+model EditorInvestigation {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  mapUrl      String?
+
+  project     EditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  targets     EditorSearchTarget[]
+}
+
+model EditorSearchTarget {
+  id          String   @id @default(uuid())
+  invId       String
+  name        String
+  xPosition   Float
+  yPosition   Float
+
+  investigation EditorInvestigation @relation(fields: [invId], references: [id], onDelete: Cascade)
+}
+
+model EditorClue {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  description String
+  imageUrl    String?
+  isPublic    Boolean  @default(false)
+
+  project     EditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model EditorAsset {
+  id          String   @id @default(uuid())
+  projectId   String
+  type        String   // IMAGE, AUDIO, VIDEO
+  url         String
+  size        Int      @default(0)
+
+  project     EditorProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

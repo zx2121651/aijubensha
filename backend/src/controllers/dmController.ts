@@ -60,13 +60,43 @@ export const finishGame = async (req: Request, res: Response) => {
 };
 
 // 预留空壳接口
-export const getDmProfile = (req: Request, res: Response) => res.json({ data: {} });
-export const getDmSchedule = (req: Request, res: Response) => res.json({ data: [] });
-export const applyDmSchedule = (req: Request, res: Response) => res.json({ status: 'success' });
-export const requestDmWithdraw = (req: Request, res: Response) => res.json({ status: 'success' });
-export const distributeClue = (req: Request, res: Response) => res.json({ status: 'success' });
-export const revokeClue = (req: Request, res: Response) => res.json({ status: 'success' });
-export const pauseGame = (req: Request, res: Response) => res.json({ status: 'success' });
-export const resumeGame = (req: Request, res: Response) => res.json({ status: 'success' });
-export const kickPlayer = (req: Request, res: Response) => res.json({ status: 'success' });
-export const playAudio = (req: Request, res: Response) => res.json({ status: 'success' });
+export const getDmProfile = async (req: Request, res: Response) => {
+  const dm = await prisma.user.findUnique({ where: { id: req.query.dmId as string }, include: { hostedRooms: true } });
+  res.json({ data: dm });
+};
+export const getDmSchedule = async (req: Request, res: Response) => {
+  const schedules = await prisma.dmSchedule.findMany({ where: { dmId: req.query.dmId as string } });
+  res.json({ data: schedules });
+};
+export const applyDmSchedule = async (req: Request, res: Response) => {
+  const { dmId, startTime, endTime } = req.body;
+  const schedule = await prisma.dmSchedule.create({ data: { dmId, startTime: new Date(startTime), endTime: new Date(endTime) } });
+  res.json({ message: '排班申请已提交', data: schedule });
+};
+export const requestDmWithdraw = async (req: Request, res: Response) => {
+  const { userId, amount, method, accountInfo } = req.body;
+  const withdrawal = await prisma.withdrawalRequest.create({
+    data: { userId, amount, method, accountInfo }
+  });
+  res.json({ message: '提现申请已提交，等待审核', data: withdrawal });
+};
+export const distributeClue = async (req: Request, res: Response) => {
+  // Mock websocket event trigger
+  res.json({ message: `向玩家 ${req.body.playerId} 派发线索 ${req.body.clueId}` });
+};
+export const revokeClue = async (req: Request, res: Response) => {
+  res.json({ message: '线索已被强制回收' });
+};
+export const pauseGame = async (req: Request, res: Response) => {
+  res.json({ message: '游戏已暂停，所有人无法操作' });
+};
+export const resumeGame = async (req: Request, res: Response) => {
+  res.json({ message: '游戏已恢复' });
+};
+export const kickPlayer = async (req: Request, res: Response) => {
+  await prisma.roomPlayer.delete({ where: { id: req.params.playerId } });
+  res.json({ message: '玩家已被踢出' });
+};
+export const playAudio = async (req: Request, res: Response) => {
+  res.json({ message: `开始全房间播放音频 ${req.body.audioUrl}` });
+};
