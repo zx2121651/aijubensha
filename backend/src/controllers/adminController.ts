@@ -121,21 +121,92 @@ export const handleAuditPostAction = async (req: Request, res: Response) => {
 };
 
 // 预留未完全实现的空壳接口
-export const getAuditReviews = (req: Request, res: Response) => res.json({ data: [] });
-export const getSystemNotices = (req: Request, res: Response) => res.json({ data: [] });
-export const createSystemNotice = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getStoreItems = (req: Request, res: Response) => res.json({ data: [] });
-export const getRoles = (req: Request, res: Response) => res.json({ data: [] });
-export const manageRoles = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getManagers = (req: Request, res: Response) => res.json({ data: [] });
-export const manageManagers = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getFinanceOrders = (req: Request, res: Response) => res.json({ data: [] });
-export const refundOrder = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getWithdrawals = (req: Request, res: Response) => res.json({ data: [] });
-export const auditWithdrawal = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getBanners = (req: Request, res: Response) => res.json({ data: [] });
-export const updateBanners = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getCoupons = (req: Request, res: Response) => res.json({ data: [] });
-export const issueCoupons = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getSystemLogs = (req: Request, res: Response) => res.json({ data: [] });
-export const getSystemErrors = (req: Request, res: Response) => res.json({ data: [] });
+export const getAuditReviews = async (req: Request, res: Response) => {
+  const reviews = await prisma.scriptReview.findMany({ where: { status: 'PENDING' }, include: { script: true } });
+  res.json({ data: reviews });
+};
+export const getSystemNotices = async (req: Request, res: Response) => {
+  const notices = await prisma.systemNotice.findMany({ orderBy: { createdAt: 'desc' } });
+  res.json({ data: notices });
+};
+export const createSystemNotice = async (req: Request, res: Response) => {
+  const notice = await prisma.systemNotice.create({ data: req.body });
+  res.json({ message: '公告已发布', data: notice });
+};
+export const getStoreItems = async (req: Request, res: Response) => {
+  const items = await prisma.storeItem.findMany();
+  res.json({ data: items });
+};
+export const getRoles = async (req: Request, res: Response) => {
+  const roles = await prisma.roleConfig.findMany();
+  res.json({ data: roles });
+};
+export const manageRoles = async (req: Request, res: Response) => {
+  const { name, permissions } = req.body;
+  const role = await prisma.roleConfig.upsert({
+    where: { name },
+    update: { permissions },
+    create: { name, permissions }
+  });
+  res.json({ message: '角色配置保存成功', data: role });
+};
+export const getManagers = async (req: Request, res: Response) => {
+  const managers = await prisma.user.findMany({ where: { OR: [{ role: 'ADMIN' }, { role: 'SUPER_ADMIN' }] } });
+  res.json({ data: managers });
+};
+export const manageManagers = async (req: Request, res: Response) => {
+  const user = await prisma.user.update({
+    where: { id: req.body.userId },
+    data: { role: req.body.role }
+  });
+  res.json({ message: '管理员授权成功', data: user });
+};
+export const getFinanceOrders = async (req: Request, res: Response) => {
+  const orders = await prisma.order.findMany({ include: { user: { select: { nickname: true } } }, orderBy: { createdAt: 'desc' } });
+  res.json({ data: orders });
+};
+export const refundOrder = async (req: Request, res: Response) => {
+  const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!order || order.status !== 'PAID') return res.status(400).json({ error: '订单无法退款' });
+
+  await prisma.$transaction([
+    prisma.order.update({ where: { id: order.id }, data: { status: 'REFUNDED' } }),
+    prisma.user.update({ where: { id: order.userId }, data: { coins: { decrement: order.amount * 10 } } })
+  ]);
+  res.json({ message: '退款处理成功' });
+};
+export const getWithdrawals = async (req: Request, res: Response) => {
+  const items = await prisma.withdrawalRequest.findMany({ include: { user: { select: { nickname: true } } } });
+  res.json({ data: items });
+};
+export const auditWithdrawal = async (req: Request, res: Response) => {
+  const request = await prisma.withdrawalRequest.update({
+    where: { id: req.params.id },
+    data: { status: req.body.status } // APPROVED / REJECTED
+  });
+  res.json({ message: '提现审批完成', data: request });
+};
+export const getBanners = async (req: Request, res: Response) => {
+  const banners = await prisma.banner.findMany();
+  res.json({ data: banners });
+};
+export const updateBanners = async (req: Request, res: Response) => {
+  const banner = await prisma.banner.create({ data: req.body });
+  res.json({ message: 'Banner添加成功', data: banner });
+};
+export const getCoupons = async (req: Request, res: Response) => {
+  const coupons = await prisma.coupon.findMany();
+  res.json({ data: coupons });
+};
+export const issueCoupons = async (req: Request, res: Response) => {
+  const coupon = await prisma.coupon.create({ data: req.body });
+  res.json({ message: '优惠券下发成功', data: coupon });
+};
+export const getSystemLogs = async (req: Request, res: Response) => {
+  const logs = await prisma.systemLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  res.json({ data: logs });
+};
+export const getSystemErrors = async (req: Request, res: Response) => {
+  const errors = await prisma.systemError.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  res.json({ data: errors });
+};

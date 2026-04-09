@@ -230,12 +230,71 @@ export const joinClub = async (req: Request, res: Response) => {
 };
 
 // 预留未完全实现的空壳接口
-export const getStoreItems = (req: Request, res: Response) => res.json({ data: [] });
-export const buyStoreItem = (req: Request, res: Response) => res.json({ status: 'success' });
-export const giftStoreItem = (req: Request, res: Response) => res.json({ status: 'success' });
-export const redeemCode = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getClubMembers = (req: Request, res: Response) => res.json({ data: [] });
-export const leaveClub = (req: Request, res: Response) => res.json({ status: 'success' });
-export const submitSupportTicket = (req: Request, res: Response) => res.json({ status: 'success' });
-export const getSupportTickets = (req: Request, res: Response) => res.json({ data: [] });
-export const getFaqList = (req: Request, res: Response) => res.json({ data: [] });
+export const getStoreItems = async (req: Request, res: Response) => {
+  const items = await prisma.storeItem.findMany({ where: { isActive: true } });
+  res.json({ data: items });
+};
+export const buyStoreItem = async (req: Request, res: Response) => {
+  const { userId, itemId } = req.body;
+  const item = await prisma.storeItem.findUnique({ where: { id: itemId } });
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { coins: { decrement: item.price } } }),
+    prisma.order.create({ data: { userId, type: 'ITEM_BUY', amount: item.price, status: 'PAID', description: `Buy ${item.name}` } })
+  ]);
+  res.json({ message: '购买成功', status: 'success' });
+};
+export const giftStoreItem = async (req: Request, res: Response) => {
+  const { senderId, receiverId, itemId } = req.body;
+  const item = await prisma.storeItem.findUnique({ where: { id: itemId } });
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: senderId }, data: { coins: { decrement: item.price } } }),
+    prisma.order.create({ data: { userId: senderId, type: 'ITEM_BUY', amount: item.price, status: 'PAID', description: `Gift ${item.name} to ${receiverId}` } })
+  ]);
+  res.json({ message: '赠送成功', status: 'success' });
+};
+export const redeemCode = async (req: Request, res: Response) => {
+  const { userId, code } = req.body;
+  const coupon = await prisma.coupon.findUnique({ where: { code, isUsed: false } });
+  if (!coupon || coupon.validUntil < new Date()) return res.status(400).json({ error: '兑换码无效或已过期' });
+
+  await prisma.$transaction([
+    prisma.coupon.update({ where: { id: coupon.id }, data: { isUsed: true, userId } }),
+    prisma.user.update({ where: { id: userId }, data: { balance: { increment: coupon.discount } } })
+  ]);
+  res.json({ message: '兑换成功', discount: coupon.discount });
+};
+export const getClubMembers = async (req: Request, res: Response) => {
+  const members = await prisma.clubMember.findMany({
+    where: { clubId: req.params.id },
+    include: { user: { select: { nickname: true, avatar: true } } }
+  });
+  res.json({ data: members });
+};
+export const leaveClub = async (req: Request, res: Response) => {
+  await prisma.clubMember.deleteMany({
+    where: { clubId: req.params.id, userId: req.body.userId }
+  });
+  res.json({ message: '成功退出公会', status: 'success' });
+};
+export const submitSupportTicket = async (req: Request, res: Response) => {
+  const { userId, type, content } = req.body;
+  const ticket = await prisma.supportTicket.create({
+    data: { userId, type, content }
+  });
+  res.json({ message: '工单已提交', data: ticket });
+};
+export const getSupportTickets = async (req: Request, res: Response) => {
+  const tickets = await prisma.supportTicket.findMany({
+    where: { userId: req.query.userId as string },
+    orderBy: { createdAt: 'desc' }
+  });
+  res.json({ data: tickets });
+};
+export const getFaqList = async (req: Request, res: Response) => {
+  const faqs = await prisma.faq.findMany({ orderBy: { orderIndex: 'asc' } });
+  res.json({ data: faqs });
+};
