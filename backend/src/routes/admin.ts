@@ -1,24 +1,12 @@
 import { Router } from 'express';
 import {
-  getDashboardStats,
-  getDashboardCharts,
-  getUsers,
-  getUserDetails,
-  banUser,
-  grantUserAsset,
-  getScripts,
-  createScript,
-  updateScript,
-  updateScriptStatus,
-  getActiveRooms,
-  getRoomLogs,
-  dismissRoom,
-  getAuditPosts,
-  handleAuditPostAction,
-  getAuditReviews,
-  getSystemNotices,
-  createSystemNotice,
-  getStoreItems
+  getDashboardStats, getDashboardCharts, getUsers, getUserDetails, banUser, grantUserAsset,
+  getScripts, createScript, updateScript, updateScriptStatus, getActiveRooms, getRoomLogs, dismissRoom,
+  getAuditPosts, handleAuditPostAction, getAuditReviews, getSystemNotices, createSystemNotice, getStoreItems,
+  getRoles, manageRoles, getManagers, manageManagers,
+  getFinanceOrders, refundOrder, getWithdrawals, auditWithdrawal,
+  getBanners, updateBanners, getCoupons, issueCoupons,
+  getSystemLogs, getSystemErrors
 } from '../controllers/adminController';
 
 const router = Router();
@@ -28,6 +16,14 @@ const router = Router();
 // =======================
 router.get('/dashboard/stats', getDashboardStats);
 router.get('/dashboard/charts', getDashboardCharts);
+
+// =======================
+// 权限与角色管控 (RBAC)
+// =======================
+router.get('/roles', getRoles);
+router.post('/roles', manageRoles);
+router.get('/managers', getManagers);
+router.post('/managers', manageManagers);
 
 // =======================
 // 用户管理模块
@@ -44,6 +40,22 @@ router.get('/scripts', getScripts);
 router.post('/scripts', createScript);
 router.put('/scripts/:id', updateScript);
 router.post('/scripts/:id/toggle-status', updateScriptStatus);
+
+// =======================
+// 财务与订单管理
+// =======================
+router.get('/finance/orders', getFinanceOrders);
+router.post('/finance/orders/:id/refund', refundOrder);
+router.get('/finance/withdrawals', getWithdrawals);
+router.post('/finance/withdrawals/:id/audit', auditWithdrawal);
+
+// =======================
+// 营销与活动中心
+// =======================
+router.get('/marketing/banners', getBanners);
+router.post('/marketing/banners', updateBanners);
+router.get('/marketing/coupons', getCoupons);
+router.post('/marketing/coupons/issue', issueCoupons);
 
 // =======================
 // 房间与游戏监控模块
@@ -65,5 +77,11 @@ router.get('/audit/reviews', getAuditReviews);
 router.get('/notices', getSystemNotices);
 router.post('/notices', createSystemNotice);
 router.get('/store/items', getStoreItems);
+
+// =======================
+// 系统日志与安全
+// =======================
+router.get('/system/logs', getSystemLogs);
+router.get('/system/errors', getSystemErrors);
 
 export default router;

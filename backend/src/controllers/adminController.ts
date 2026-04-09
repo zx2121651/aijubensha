@@ -89,3 +89,53 @@ export const createSystemNotice = (req: Request, res: Response) => {
 export const getStoreItems = (req: Request, res: Response) => {
   res.json({ message: '获取商店道具与定价列表 (Admin)', data: [] });
 };
+
+// --- RBAC 权限与角色管控 ---
+export const getRoles = (req: Request, res: Response) => {
+  res.json({ message: '获取后台角色配置列表 (Admin)', data: [] });
+};
+export const manageRoles = (req: Request, res: Response) => {
+  res.json({ message: '添加/编辑管理角色及其权限点 (Admin)', status: 'success' });
+};
+export const getManagers = (req: Request, res: Response) => {
+  res.json({ message: '获取后台管理员账号列表 (Admin)', data: [] });
+};
+export const manageManagers = (req: Request, res: Response) => {
+  res.json({ message: '新增或禁用管理员账号 (Admin)', status: 'success' });
+};
+
+// --- 财务与订单管理 ---
+export const getFinanceOrders = (req: Request, res: Response) => {
+  res.json({ message: '获取全平台充值与消费订单明细 (Admin)', data: [] });
+};
+export const refundOrder = (req: Request, res: Response) => {
+  res.json({ message: '处理用户退款申请 (Admin)', status: 'success' });
+};
+export const getWithdrawals = (req: Request, res: Response) => {
+  res.json({ message: '获取提现申请列表 (Admin)', data: [] });
+};
+export const auditWithdrawal = (req: Request, res: Response) => {
+  res.json({ message: '审批提现申请 (Admin)', status: 'success' });
+};
+
+// --- 营销与活动中心 ---
+export const getBanners = (req: Request, res: Response) => {
+  res.json({ message: '获取 App 首页轮播图配置 (Admin)', data: [] });
+};
+export const updateBanners = (req: Request, res: Response) => {
+  res.json({ message: '更新轮播图 (Admin)', status: 'success' });
+};
+export const getCoupons = (req: Request, res: Response) => {
+  res.json({ message: '获取优惠券/折扣活动列表 (Admin)', data: [] });
+};
+export const issueCoupons = (req: Request, res: Response) => {
+  res.json({ message: '向全服或指定人群派发优惠券 (Admin)', status: 'success' });
+};
+
+// --- 系统日志与安全 ---
+export const getSystemLogs = (req: Request, res: Response) => {
+  res.json({ message: '获取管理员的操作审计日志 (Admin)', data: [] });
+};
+export const getSystemErrors = (req: Request, res: Response) => {
+  res.json({ message: '获取应用运行时的错误报警记录 (Admin)', data: [] });
+};

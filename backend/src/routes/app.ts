@@ -1,25 +1,13 @@
 import { Router } from 'express';
 import {
-  login,
-  register,
-  getUserProfile,
-  updateUserProfile,
-  getUserInventory,
-  getScripts,
-  getScriptDetail,
-  getScriptReviews,
-  getRooms,
-  createRoom,
-  joinRoom,
-  leaveRoom,
-  getFriendsList,
-  sendFriendRequest,
-  handleFriendRequest,
-  getConversations,
-  getConversationMessages,
-  getPosts,
-  createPost,
-  commentOnPost
+  login, register, getUserProfile, updateUserProfile, getUserInventory,
+  getScripts, getScriptDetail, getScriptReviews, getRooms, createRoom, joinRoom, leaveRoom,
+  getFriendsList, sendFriendRequest, handleFriendRequest, getConversations, getConversationMessages,
+  getPosts, createPost, commentOnPost,
+  getWalletBalance, getWalletHistory, rechargeWallet, withdrawWallet, getOrderStatus,
+  getStoreItems, buyStoreItem, giftStoreItem, redeemCode,
+  getClubs, createClub, getClubDetail, joinClub, getClubMembers, leaveClub,
+  submitSupportTicket, getSupportTickets, getFaqList
 } from '../controllers/appController';
 
 const router = Router();
@@ -63,5 +51,39 @@ router.get('/messages/:conversationId', getConversationMessages);
 router.get('/posts', getPosts);
 router.post('/posts', createPost);
 router.post('/posts/:id/comment', commentOnPost);
+
+// =======================
+// 钱包与支付模块
+// =======================
+router.get('/wallet/balance', getWalletBalance);
+router.get('/wallet/history', getWalletHistory);
+router.post('/wallet/recharge', rechargeWallet);
+router.post('/wallet/withdraw', withdrawWallet);
+router.get('/wallet/order/:id', getOrderStatus);
+
+// =======================
+// 商城与道具模块
+// =======================
+router.get('/store/items', getStoreItems);
+router.post('/store/buy', buyStoreItem);
+router.post('/store/gift', giftStoreItem);
+router.post('/store/redeem', redeemCode);
+
+// =======================
+// 俱乐部/公会模块
+// =======================
+router.get('/clubs', getClubs);
+router.post('/clubs/create', createClub);
+router.get('/clubs/:id', getClubDetail);
+router.post('/clubs/:id/join', joinClub);
+router.get('/clubs/:id/members', getClubMembers);
+router.post('/clubs/:id/leave', leaveClub);
+
+// =======================
+// 客服与反馈
+// =======================
+router.post('/support/tickets', submitSupportTicket);
+router.get('/support/tickets', getSupportTickets);
+router.get('/support/faq', getFaqList);
 
 export default router;
