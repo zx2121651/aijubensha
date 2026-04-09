@@ -4,34 +4,75 @@ import { prisma } from '../db/prisma';
 // =======================
 // 用户与鉴权模块
 // =======================
-export const register = async (req: Request, res: Response) => {
-  try {
-    const { phone, password, nickname } = req.body;
-    // 模拟密码哈希处理
-    const passwordHash = Buffer.from(password || '123456').toString('base64');
+import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { catchAsync } from '../utils/catchAsync';
+import { AppError } from '../utils/AppError';
 
-    const user = await prisma.user.create({
-      data: { phone, passwordHash, nickname }
-    });
-    res.json({ message: '注册成功', user });
-  } catch (error) {
-    res.status(500).json({ error: '注册失败，可能手机号已存在' });
-  }
+// 登录 Token 生成辅助方法，挂载了 id 和 role 身份标识
+const signToken = (id: string, role: string) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET || 'fallback-secret-key', {
+    expiresIn: (process.env.JWT_EXPIRES_IN as any) || '7d'
+  });
 };
 
-export const login = async (req: Request, res: Response) => {
-  try {
-    const { phone, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { phone } });
-    if (!user) return res.status(404).json({ error: '用户不存在' });
+const registerSchema = z.object({
+  phone: z.string().regex(/^1[3-9]\d{9}$/, '请输入格式正确的11位手机号'),
+  password: z.string().min(6, '密码长度必须至少为6个字符').max(20, '密码不能长于20个字符'),
+  nickname: z.string().min(2, '昵称最少2个字符').max(10, '昵称最多10个字符')
+});
 
-    // 模拟 Token 签发
-    const token = `jwt-token-${user.id}`;
-    res.json({ message: '登录成功', token, userId: user.id });
-  } catch (error) {
-    res.status(500).json({ error: '登录发生异常' });
+export const register = catchAsync(async (req: Request, res: Response) => {
+  // 1. Zod 强类型过滤校验，任何字段不符合规范会立刻抛出 ZodError 走全局错误中间件
+  const validatedData = registerSchema.parse(req.body);
+
+  // 2. 核心密码安全哈希化，盐值强度 12
+  const passwordHash = await bcrypt.hash(validatedData.password, 12);
+
+  // 3. 真实 Prisma 数据入库
+  const user = await prisma.user.create({
+    data: {
+      phone: validatedData.phone,
+      passwordHash,
+      nickname: validatedData.nickname
+    }
+  });
+
+  // 4. 下发签章
+  const token = signToken(user.id, user.role);
+
+  res.status(201).json({ message: '注册成功', token, user: { id: user.id, nickname: user.nickname, role: user.role } });
+});
+
+const loginSchema = z.object({
+  phone: z.string(),
+  password: z.string()
+});
+
+export const login = catchAsync(async (req: Request, res: Response) => {
+  const { phone, password } = loginSchema.parse(req.body);
+
+  // 验证用户在不在
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (!user) {
+    throw new AppError('用户账号或密码不正确', 401);
   }
-};
+
+  // 对比哈希密文
+  const isCorrect = await bcrypt.compare(password, user.passwordHash);
+  if (!isCorrect) {
+    throw new AppError('用户账号或密码不正确', 401);
+  }
+
+  // 检查如果处于封禁状态不允许发放 Token
+  if (user.status === 'BANNED') {
+    throw new AppError('您账号已被管理员封停，无法登入游戏', 403);
+  }
+
+  const token = signToken(user.id, user.role);
+  res.json({ message: '登录成功', token, user: { id: user.id, nickname: user.nickname, role: user.role, coins: user.coins } });
+});
 
 export const getUserProfile = async (req: Request, res: Response) => {
   // 假定通过中间件注入了 userId
@@ -62,13 +103,38 @@ export const getUserInventory = async (req: Request, res: Response) => {
 // =======================
 // 剧本与发现模块
 // =======================
-export const getScripts = async (req: Request, res: Response) => {
-  const scripts = await prisma.script.findMany({
-    where: { status: 'PUBLISHED' },
-    select: { id: true, title: true, cover: true, tags: true, difficulty: true }
+export const getScripts = catchAsync(async (req: Request, res: Response) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
+
+  // 构建复合查询条件
+  const where: any = { status: 'PUBLISHED' };
+
+  if (req.query.difficulty) {
+    where.difficulty = req.query.difficulty;
+  }
+  if (req.query.tags) {
+    // tags 是包含关系查询
+    where.tags = { has: req.query.tags };
+  }
+
+  const [scripts, totalCount] = await Promise.all([
+    prisma.script.findMany({
+      where,
+      skip,
+      take: limit,
+      select: { id: true, title: true, cover: true, tags: true, difficulty: true, price: true }
+    }),
+    prisma.script.count({ where })
+  ]);
+
+  res.json({
+    message: '剧本获取成功',
+    data: scripts,
+    pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) }
   });
-  res.json({ data: scripts });
-};
+});
 
 export const getScriptDetail = async (req: Request, res: Response) => {
   const script = await prisma.script.findUnique({
@@ -185,17 +251,20 @@ export const getWalletBalance = async (req: Request, res: Response) => {
   res.json({ data: user });
 };
 
-export const rechargeWallet = async (req: Request, res: Response) => {
-  const { userId, amount } = req.body;
+const rechargeSchema = z.object({ amount: z.number().min(1, '充值金额不能少于 1 元').max(10000, '单次充值不能超1万') });
 
-  // 使用 Prisma 事务保证订单创建与余额更新的一致性
+export const rechargeWallet = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id; // 已被鉴权层 authMiddleware 挂载
+  const { amount } = rechargeSchema.parse(req.body);
+
+  // 生成并完成充值订单事务
   const result = await prisma.$transaction([
     prisma.order.create({ data: { userId, type: 'RECHARGE', amount, status: 'PAID' } }),
     prisma.user.update({ where: { id: userId }, data: { coins: { increment: amount * 10 } } })
   ]);
 
   res.json({ message: '充值成功', order: result[0] });
-};
+});
 
 export const getWalletHistory = (req: Request, res: Response) => res.json({ data: [] });
 export const withdrawWallet = (req: Request, res: Response) => res.json({ status: 'success' });
@@ -234,17 +303,30 @@ export const getStoreItems = async (req: Request, res: Response) => {
   const items = await prisma.storeItem.findMany({ where: { isActive: true } });
   res.json({ data: items });
 };
-export const buyStoreItem = async (req: Request, res: Response) => {
-  const { userId, itemId } = req.body;
-  const item = await prisma.storeItem.findUnique({ where: { id: itemId } });
-  if (!item) return res.status(404).json({ error: 'Item not found' });
+export const buyStoreItem = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id; // req.user provided by protect middleware
+  const { itemId } = req.body;
 
+  if (!itemId) throw new AppError('请选择你要购买的道具', 400);
+
+  const item = await prisma.storeItem.findUnique({ where: { id: itemId } });
+  if (!item || !item.isActive) {
+    throw new AppError('该商品不存在或已下架', 404);
+  }
+
+  const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+  if (currentUser!.coins < item.price) {
+    throw new AppError('您的金币不足，请先充值', 400); // 业务层拦截，防止数据库爆雷
+  }
+
+  // 此时余额必然足够，执行最终扣减操作与流水生成
   await prisma.$transaction([
     prisma.user.update({ where: { id: userId }, data: { coins: { decrement: item.price } } }),
     prisma.order.create({ data: { userId, type: 'ITEM_BUY', amount: item.price, status: 'PAID', description: `Buy ${item.name}` } })
   ]);
+
   res.json({ message: '购买成功', status: 'success' });
-};
+});
 export const giftStoreItem = async (req: Request, res: Response) => {
   const { senderId, receiverId, itemId } = req.body;
   const item = await prisma.storeItem.findUnique({ where: { id: itemId } });

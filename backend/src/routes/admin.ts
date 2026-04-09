@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { protect, restrictTo } from '../middlewares/authMiddleware';
 import {
   getDashboardStats, getDashboardCharts, getUsers, getUserDetails, banUser, grantUserAsset,
   getScripts, createScript, updateScript, updateScriptStatus, getActiveRooms, getRoomLogs, dismissRoom,
@@ -10,6 +11,10 @@ import {
 } from '../controllers/adminController';
 
 const router = Router();
+
+// 后台所有接口必须鉴权并且必须是管理员权限
+router.use(protect);
+router.use(restrictTo('ADMIN', 'SUPER_ADMIN'));
 
 // =======================
 // 数据大盘模块
