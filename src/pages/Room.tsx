@@ -14,11 +14,13 @@ interface RoomPlayer {
   isHost?: boolean;
 }
 
+// 房间组件：玩家在此页面集结，可以选择剧本中的角色，确认准备状态，由房主控制进入游戏。
 export default function Room() {
   const { id } = useParams();
   const navigate = useNavigate();
   const script = scripts.find(s => s.id === id);
   
+  // 模拟当前登录的用户信息（在真实环境中应从鉴权上下文或全局状态中获取）
   // Mock current user
   const currentUser = {
     id: 'me',
@@ -26,6 +28,7 @@ export default function Room() {
     avatar: 'https://picsum.photos/seed/me/150/150',
   };
 
+  // 管理当前房间内的玩家列表状态
   const [players, setPlayers] = useState<RoomPlayer[]>([
     { id: 'me', name: '我', avatar: currentUser.avatar, isReady: false, selectedCharacterId: null, isHost: true },
     { id: 'p1', name: '推理大师', avatar: 'https://picsum.photos/seed/p1/150/150', isReady: true, selectedCharacterId: script?.characters?.[1]?.id || null },
@@ -52,9 +55,11 @@ export default function Room() {
   const isHost = myPlayer?.isHost;
   const allReady = players.every(p => p.isHost || p.isReady) && players.length === targetPlayers;
 
+  // 玩家点击选择某个角色的处理函数
   const handleSelectCharacter = (charId: string) => {
-    if (myPlayer?.isReady) return; // Cannot change if ready
+    if (myPlayer?.isReady) return; // 如果玩家已经点击了准备，则不可更改所选角色
     
+    // 检查此角色是否已经被房间内其他玩家选中，实现简单的“防撞车”功能
     // Check if taken by others
     if (players.some(p => p.id !== 'me' && p.selectedCharacterId === charId)) {
       return;
@@ -65,14 +70,16 @@ export default function Room() {
     ));
   };
 
+  // 切换当前玩家的准备状态（准备/取消准备）
   const toggleReady = () => {
-    if (!myPlayer?.selectedCharacterId) return; // Must select character first
+    if (!myPlayer?.selectedCharacterId) return; // 只有在选择了角色之后才能点击准备
     
     setPlayers(prev => prev.map(p => 
       p.id === 'me' ? { ...p, isReady: !p.isReady } : p
     ));
   };
 
+  // 房主点击开始游戏，导航到具体的游戏核心页面
   const startGame = () => {
     navigate(`/game/${script.id}`);
   };
