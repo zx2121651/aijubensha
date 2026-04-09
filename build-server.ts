@@ -6,5 +6,5 @@ esbuild.build({
   platform: 'node',
   target: 'node18',
   outfile: 'dist/server.cjs',
-  external: ['express', 'socket.io', 'vite'],
+  external: ['express', 'socket.io', 'vite', '@prisma/client', '.prisma/client'],
 }).catch(() => process.exit(1));
