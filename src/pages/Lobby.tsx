@@ -9,6 +9,7 @@ export default function Lobby() {
   const [activeFilter, setActiveFilter] = useState('全部');
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
   const [isMatching, setIsMatching] = useState(false);
+  const [matchedData, setMatchedData] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -24,15 +25,20 @@ export default function Lobby() {
 
   const handleAutoMatch = async () => {
     setIsMatching(true);
+    setMatchedData(null);
     try {
-      const res = await autoMatchRoom();
+      // 故意延迟1-2秒，让雷达动画转一会儿，增强仪式感
+      const minDelay = new Promise(resolve => setTimeout(resolve, 1500));
+      const [res] = await Promise.all([autoMatchRoom(), minDelay]);
+
       if (res.data?.roomId) {
-         navigate(`/room/${res.data.roomId}`);
+         setMatchedData(res.data); // 这会触发 MatchRadar 进入 locked 状态
+      } else {
+         setIsMatching(false);
       }
     } catch (error: any) {
-      alert(error.response?.data?.message || '匹配失败');
-    } finally {
       setIsMatching(false);
+      alert(error.response?.data?.message || '匹配失败');
     }
   };
 
@@ -42,6 +48,16 @@ export default function Lobby() {
   const filters = ['全部', '缺男', '缺女', '新手友好', '硬核推理', '情感沉浸'];
 
   return (
+    <>
+      <MatchRadar
+        isMatching={isMatching}
+        matchedData={matchedData}
+        onAnimationComplete={() => {
+          setIsMatching(false);
+          setMatchedData(null);
+          navigate(`/room/${matchedData.roomId}`);
+        }}
+      />
     <div className="min-h-screen bg-neutral-50 pb-8">
       {/* Header */}
       <header className="bg-white px-4 py-4 sticky top-0 z-40 shadow-sm flex items-center justify-between">
@@ -181,5 +197,6 @@ export default function Lobby() {
         <UserPlus className="w-6 h-6" />
       </button>
     </div>
+    </>
   );
 }
