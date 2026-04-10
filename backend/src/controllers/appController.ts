@@ -155,13 +155,216 @@ export const getScriptReviews = async (req: Request, res: Response) => {
 // =======================
 // 大厅与组局模块
 // =======================
-export const getRooms = async (req: Request, res: Response) => {
-  const rooms = await prisma.room.findMany({
-    where: { phase: 'RECRUITING', isPrivate: false },
-    include: { script: true, _count: { select: { players: true } } }
+
+// =======================
+// 推荐匹配辅助方法
+// =======================
+const getPlayedAndOwnedScriptIds = async (userId: string): Promise<string[]> => {
+  const roomPlayers = await prisma.roomPlayer.findMany({
+    where: { userId },
+    include: { room: { select: { scriptId: true } } }
   });
-  res.json({ data: rooms });
+  const playedScriptIds = roomPlayers.map(rp => rp.room.scriptId);
+
+  const reviews = await prisma.scriptReview.findMany({
+    where: { userId }
+  });
+  const reviewedScriptIds = reviews.map(r => r.scriptId);
+
+  const filterIds = new Set([...playedScriptIds, ...reviewedScriptIds]);
+  return Array.from(filterIds);
 };
+
+export const getRooms = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id; // 仅当用户登录时应用智能推荐
+
+  let playedScriptIds: string[] = [];
+  let userFriends: string[] = [];
+  let userClubs: string[] = [];
+
+  if (userId) {
+    // 1. 获取防剧透过滤列表
+    playedScriptIds = await getPlayedAndOwnedScriptIds(userId);
+
+    // 2. 获取社交关系网，用于社交加权打分
+    const friends = await prisma.friendship.findMany({
+      where: {
+        OR: [{ senderId: userId }, { receiverId: userId }],
+        status: 'ACCEPTED'
+      }
+    });
+    userFriends = friends.map(f => f.senderId === userId ? f.receiverId : f.senderId);
+
+    const clubMemberships = await prisma.clubMember.findMany({
+      where: { userId }
+    });
+    const clubIds = clubMemberships.map(c => c.clubId);
+
+    const sameClubMembers = await prisma.clubMember.findMany({
+      where: { clubId: { in: clubIds } }
+    });
+    userClubs = sameClubMembers.map(c => c.userId);
+  }
+
+  // 3. 执行数据库级过滤 (Hard Filter)
+  const rooms = await prisma.room.findMany({
+    where: {
+      phase: 'RECRUITING',
+      isPrivate: false,
+      scriptId: userId ? { notIn: playedScriptIds } : undefined
+    },
+    include: {
+      script: { select: { id: true, title: true, minPlayers: true, maxPlayers: true, difficulty: true } },
+      players: { select: { userId: true } },
+      _count: { select: { players: true } }
+    }
+  });
+
+  // 4. 内存中进行加权打分 (Scoring) 与排序
+  const scoredRooms = rooms
+    .filter(room => room._count.players < room.script.maxPlayers) // 二次过滤已满房间
+    .map(room => {
+      let score = 0;
+      const currentCount = room._count.players;
+      const minPlayers = room.script.minPlayers;
+
+      // a) 发车效率权重 (Max 50): 缺的人越少，分数越高
+      if (currentCount > 0) {
+        const fillRatio = currentCount / minPlayers;
+        score += Math.min(fillRatio * 50, 50); // 若达到甚至超过 minPlayers，给予满分 50
+      }
+
+      // b) 社交加成权重 (Max 30)
+      if (userId) {
+        let hasFriend = false;
+        let hasClubmate = false;
+
+        for (const p of room.players) {
+          if (userFriends.includes(p.userId)) hasFriend = true;
+          if (userClubs.includes(p.userId) && p.userId !== userId) hasClubmate = true;
+        }
+
+        if (hasFriend) score += 20;
+        if (hasClubmate) score += 10;
+      }
+
+      // c) 随机波动微调，避免相同分数长期霸榜 (0~5分)
+      score += Math.random() * 5;
+
+      return {
+        ...room,
+        matchScore: parseFloat(score.toFixed(2))
+      };
+    });
+
+  // 按得分从高到低排序
+  scoredRooms.sort((a, b) => b.matchScore - a.matchScore);
+
+  res.status(200).json({
+    status: 'success',
+    data: scoredRooms,
+    message: userId ? '已启用智能防剧透排车推荐' : '默认大厅列表'
+  });
+});
+
+export const autoMatchRoom = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id as string;
+
+  // 1. 获取防剧透过滤列表
+  const playedScriptIds = await getPlayedAndOwnedScriptIds(userId);
+
+  // 2. 查询社交网
+  const friends = await prisma.friendship.findMany({
+    where: { OR: [{ senderId: userId }, { receiverId: userId }], status: 'ACCEPTED' }
+  });
+  const userFriends = friends.map(f => f.senderId === userId ? f.receiverId : f.senderId);
+
+  const clubMemberships = await prisma.clubMember.findMany({ where: { userId } });
+  const clubIds = clubMemberships.map(c => c.clubId);
+  const sameClubMembers = await prisma.clubMember.findMany({ where: { clubId: { in: clubIds } } });
+  const userClubs = sameClubMembers.map(c => c.userId);
+
+  // 3. 取出可选房间
+  const rooms = await prisma.room.findMany({
+    where: {
+      phase: 'RECRUITING',
+      isPrivate: false,
+      scriptId: { notIn: playedScriptIds }
+    },
+    include: {
+      script: { select: { id: true, title: true, minPlayers: true, maxPlayers: true } },
+      players: { select: { userId: true } },
+      _count: { select: { players: true } }
+    }
+  });
+
+  // 4. 打分排序寻找 Top 1
+  const validRooms = rooms.filter(r => r._count.players < r.script.maxPlayers);
+  if (validRooms.length === 0) {
+    throw new AppError('当前大厅内没有合适您的房间，请稍后再试或自己建个房间', 404);
+  }
+
+  let bestRoom = null;
+  let maxScore = -1;
+
+  for (const room of validRooms) {
+    let score = 0;
+    const fillRatio = room._count.players / room.script.minPlayers;
+    score += Math.min(fillRatio * 50, 50);
+
+    let hasFriend = false;
+    let hasClubmate = false;
+    for (const p of room.players) {
+      if (userFriends.includes(p.userId)) hasFriend = true;
+      if (userClubs.includes(p.userId) && p.userId !== userId) hasClubmate = true;
+    }
+    if (hasFriend) score += 20;
+    if (hasClubmate) score += 10;
+    score += Math.random() * 5;
+
+    if (score > maxScore) {
+      maxScore = score;
+      bestRoom = room;
+    }
+  }
+
+  if (!bestRoom) {
+    throw new AppError('未能找到匹配的房间', 404);
+  }
+
+  // 5. 将用户加入该得分最高的房间 (事务防止并发超员)
+  const result = await prisma.$transaction(async (tx) => {
+    // 重新校验当前人数
+    const targetRoom = await tx.room.findUnique({
+      where: { id: bestRoom!.id },
+      include: { script: true, _count: { select: { players: true } } }
+    });
+
+    if (!targetRoom || targetRoom._count.players >= targetRoom.script.maxPlayers) {
+      throw new AppError('匹配的房间刚被抢先加入了，请重新匹配', 409);
+    }
+
+    const playerRecord = await tx.roomPlayer.create({
+      data: {
+        roomId: bestRoom!.id,
+        userId
+      }
+    });
+
+    return { targetRoom, playerRecord };
+  });
+
+  res.status(200).json({
+    status: 'success',
+    message: '一键匹配成功，已为您加入车队！',
+    data: {
+      roomId: bestRoom.id,
+      roomName: bestRoom.name,
+      scriptTitle: bestRoom.script.title,
+      matchScore: parseFloat(maxScore.toFixed(2))
+    }
+  });
+});
 
 export const createRoom = async (req: Request, res: Response) => {
   const { scriptId, hostDmId, name, isPrivate } = req.body;

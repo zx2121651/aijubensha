@@ -1,7 +1,8 @@
 import { Router } from 'express';
+import { protect } from '../middlewares/authMiddleware';
 import {
   login, register, getUserProfile, updateUserProfile, getUserInventory,
-  getScripts, getScriptDetail, getScriptReviews, getRooms, createRoom, joinRoom, leaveRoom,
+  getScripts, getScriptDetail, getScriptReviews, getRooms, autoMatchRoom, createRoom, joinRoom, leaveRoom,
   getFriendsList, sendFriendRequest, handleFriendRequest, getConversations, getConversationMessages,
   getPosts, createPost, commentOnPost,
   getWalletBalance, getWalletHistory, rechargeWallet, withdrawWallet, getOrderStatus,
@@ -32,6 +33,7 @@ router.get('/scripts/:id/reviews', getScriptReviews);
 // 大厅与组局模块
 // =======================
 router.get('/rooms', getRooms);
+router.post('/rooms/automatch', protect, autoMatchRoom);
 router.post('/rooms/create', createRoom);
 router.post('/rooms/:id/join', joinRoom);
 router.post('/rooms/:id/leave', leaveRoom);
