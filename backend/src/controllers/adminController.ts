@@ -1,10 +1,12 @@
+import { AppError } from '../utils/AppError';
+import { catchAsync } from '../utils/catchAsync';
 import { Request, Response } from 'express';
 import { prisma } from '../db/prisma';
 
 // =======================
 // 数据大盘模块
 // =======================
-export const getDashboardStats = async (req: Request, res: Response) => {
+export const getDashboardStats = catchAsync(async (req: Request, res: Response) => {
   const [userCount, roomCount, orderTotal] = await Promise.all([
     prisma.user.count(),
     prisma.room.count({ where: { NOT: { phase: 'FINISHED' } } }),
@@ -19,44 +21,67 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       totalRevenue: orderTotal._sum.amount || 0
     }
   });
-};
+});
 
 export const getDashboardCharts = (req: Request, res: Response) => res.json({ data: [] });
 
 // =======================
 // 用户管理模块
 // =======================
-export const getUsers = async (req: Request, res: Response) => {
-  const users = await prisma.user.findMany({
-    select: { id: true, nickname: true, phone: true, role: true, status: true, createdAt: true }
-  });
-  res.json({ data: users });
-};
+export const getUsers = catchAsync(async (req: Request, res: Response) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const search = req.query.search as string;
 
-export const getUserDetails = async (req: Request, res: Response) => {
+  const where: any = {};
+  if (search) {
+    where.OR = [
+      { nickname: { contains: search, mode: 'insensitive' } },
+      { phone: { contains: search } }
+    ];
+  }
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+      select: { id: true, nickname: true, phone: true, role: true, status: true, createdAt: true, coins: true, balance: true },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.user.count({ where })
+  ]);
+
+  res.json({
+    data: users,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+  });
+});
+
+export const getUserDetails = catchAsync(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.params.id },
     include: { _count: { select: { playedRooms: true, orders: true } } }
   });
   res.json({ data: user });
-};
+});
 
-export const banUser = async (req: Request, res: Response) => {
+export const banUser = catchAsync(async (req: Request, res: Response) => {
   const user = await prisma.user.update({
     where: { id: req.params.id },
     data: { status: 'BANNED' }
   });
   res.json({ message: '用户已封禁', data: user });
-};
+});
 
-export const grantUserAsset = async (req: Request, res: Response) => {
+export const grantUserAsset = catchAsync(async (req: Request, res: Response) => {
   const { amount } = req.body;
   const user = await prisma.user.update({
     where: { id: req.params.id },
     data: { coins: { increment: amount } }
   });
   res.json({ message: '资产发放成功', data: user });
-};
+});
 
 // =======================
 // 剧本内容管理模块

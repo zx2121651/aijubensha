@@ -4,6 +4,8 @@ import { createServer as createViteServer } from "vite";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 
 async function startServer() {
   const app = express();
@@ -54,22 +56,35 @@ async function startServer() {
       // Broadcast to others that a new user joined
       socket.to(roomId).emit("user-joined", userData);
 
-      // 监听用户断开连接事件（比如关闭网页或掉线）
-      socket.on("disconnect", () => {
+      // 监听用户断开连接事件
+      socket.on("disconnect", async () => {
+        const uData = room.get(socket.id);
         room.delete(socket.id);
         if (room.size === 0) {
           rooms.delete(roomId);
         }
         io.to(roomId).emit("user-left", socket.id);
+
+        // Prisma Database Sync - Remove or mark offline
+        if (uData && uData.dbUserId) {
+          try {
+             await prisma.roomPlayer.delete({ where: { id: uData.dbUserId } }).catch(() => {});
+          } catch(e) {}
+        }
       });
 
       // 监听玩家切换麦克风静音状态的事件
-      socket.on("toggle-mute", (isMuted) => {
+      socket.on("toggle-mute", async (isMuted) => {
         if (room.has(socket.id)) {
           const user = room.get(socket.id)!;
           user.isMuted = isMuted;
           room.set(socket.id, user);
           io.to(roomId).emit("user-muted", { userId: socket.id, isMuted });
+
+          // Prisma Database Sync
+          if (user.dbUserId) {
+             await prisma.roomPlayer.update({ where: { id: user.dbUserId }, data: { isMuted } }).catch(() => {});
+          }
         }
       });
 
@@ -80,6 +95,31 @@ async function startServer() {
           room.set(socket.id, user);
           io.to(roomId).emit("user-status-changed", { userId: socket.id, status });
         }
+      });
+
+      // 监听玩家准备/取消准备事件
+      socket.on("toggle-ready", async (isReady) => {
+        if (room.has(socket.id)) {
+          const user = room.get(socket.id)!;
+          user.isReady = isReady;
+          room.set(socket.id, user);
+          io.to(roomId).emit("user-ready", { userId: socket.id, isReady });
+
+          // Prisma Database Sync
+          if (user.dbUserId) {
+            await prisma.roomPlayer.update({ where: { id: user.dbUserId }, data: { isReady } }).catch(() => {});
+          }
+        }
+      });
+
+      // 监听 DM 强制修改阶段事件
+      socket.on("update-phase", async (phase) => {
+        io.to(roomId).emit("phase-updated", phase);
+
+        // Prisma Database Sync - Room State
+        try {
+          await prisma.room.update({ where: { id: roomId }, data: { phase } }).catch(() => {});
+        } catch(e) {}
       });
 
       // ================= WebRTC 信令服务 =================
