@@ -37,3 +37,8 @@ export const withdrawWallet = () => {
 export const getOrderStatus = (id: string) => {
   return request.get(`/wallet/order/${id}`);
 };
+
+export const userApi = {
+  login: (data: any) => request.post('/auth/login', data),
+  register: (data: any) => request.post('/auth/register', data),
+};

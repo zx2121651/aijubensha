@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Github } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { userApi } from '@/src/api/user';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,11 +11,22 @@ export default function Auth() {
   const [username, setUsername] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock authentication
-    localStorage.setItem('user', JSON.stringify({ email, username: username || '玩家123', avatar: 'https://picsum.photos/seed/user/100/100' }));
-    navigate('/');
+    try {
+      if (isLogin) {
+        const res = await userApi.login({ phone: email, password }); // 假设用email代替phone先
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+      } else {
+        const res = await userApi.register({ phone: email, password, nickname: username || '玩家123' });
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+      }
+      navigate('/');
+    } catch (error: any) {
+      alert(error.response?.data?.message || '操作失败');
+    }
   };
 
   return (
