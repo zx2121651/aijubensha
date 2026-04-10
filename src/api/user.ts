@@ -42,3 +42,7 @@ export const userApi = {
   login: (data: any) => request.post('/auth/login', data),
   register: (data: any) => request.post('/auth/register', data),
 };
+
+export const buyScript = (scriptId: string) => {
+  return request.post('/store/buy', { itemId: scriptId, type: 'SCRIPT_BUY' });
+};
