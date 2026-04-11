@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { getPostDetail, getPostComments, commentOnPost } from '@/src/api/social';
 import { ArrowLeft, Heart, MessageCircle, Share2, MoreHorizontal, Star, Send } from 'lucide-react';
 import { scripts } from '@/src/data/scripts';
 import { cn } from '@/lib/utils';
@@ -7,44 +9,76 @@ import { cn } from '@/lib/utils';
 export default function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [isLiked, setIsLiked] = useState(false);
-  const [commentText, setCommentText] = useState('');
 
-  // Mock post data based on ID
-  const post = {
-    id: id || 'p1',
-    user: '推理狂魔',
-    avatar: 'https://picsum.photos/seed/p1/40/40',
-    time: '2小时前',
-    scriptId: '1',
-    rating: 9.5,
-    content: '《林家大院》这个本真的太棒了！剧情反转再反转，完全猜不到结局。而且没有边缘角色，每个人的故事线都很饱满。强烈推荐给大家！\n\n最让我惊喜的是第二幕的搜证环节，机制设计得非常巧妙。DM的演绎也超级加分，特别是最后复盘的时候，鸡皮疙瘩都起来了。',
-    likes: 128,
-    comments: 32,
-    images: ['https://picsum.photos/seed/post1/800/600', 'https://picsum.photos/seed/post2/800/600']
+  // Real States
+  const [post, setPost] = useState<any>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [isLiked, setIsLiked] = useState(false);
+
+  const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+  const fetchPostData = async () => {
+    if (!id) return;
+    try {
+      setIsLoading(true);
+      const [resPost, resComments] = await Promise.all([
+        getPostDetail(id),
+        getPostComments(id).catch(() => ({ data: [] }))
+      ]);
+      setPost(resPost.data);
+      setComments(resComments.data || []);
+    } catch (e) {
+      console.error(e);
+      alert('帖子已被删除或加载失败');
+      navigate(-1);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const script = scripts.find(s => s.id === post.scriptId);
+  useEffect(() => {
+    fetchPostData();
+  }, [id]);
 
-  // Mock comments
-  const comments = [
-    { id: 'c1', user: '情感本爱好者', avatar: 'https://picsum.photos/seed/p2/32/32', time: '1小时前', content: '真的吗？我一直不敢玩恐怖本，这个吓人吗？', likes: 5 },
-    { id: 'c2', user: '硬核老李', avatar: 'https://picsum.photos/seed/p3/32/32', time: '45分钟前', content: '推理部分确实不错，逻辑闭环做得很严密。', likes: 12 },
-    { id: 'c3', user: '剧本杀萌新', avatar: 'https://picsum.photos/seed/p4/32/32', time: '10分钟前', content: '求组队！有人带带萌新吗？', likes: 1 },
-  ];
+  const handleCommentSubmit = async () => {
+    if (!commentText.trim()) return alert('评论内容不能为空');
+    if (!localUser.id) return alert('请先登录');
+
+    setIsSubmitting(true);
+    try {
+      await commentOnPost(id as string, { authorId: localUser.id, content: commentText });
+      setCommentText('');
+      // Optimistic update or refresh
+      fetchPostData();
+    } catch (e: any) {
+      alert(e.response?.data?.message || '评论失败');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading || !post) {
+    return <div className="min-h-screen bg-neutral-950 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600" /></div>;
+  }
+
+  // Fallback map since we don't have direct script mapping on posts anymore, only in mock.
+  const script = scripts.find(s => s.id === '1'); // Fallback purely for UI visual
 
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div className="min-h-screen bg-neutral-950 pb-20">
       {/* Header */}
-      <header className="bg-white px-4 py-3 sticky top-0 z-40 flex items-center justify-between border-b border-neutral-100">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-neutral-600 hover:text-neutral-900 transition-colors">
+      <header className="bg-neutral-950 px-4 py-3 sticky top-0 z-40 flex items-center justify-between border-b border-neutral-800">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-neutral-400 hover:text-white transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex items-center gap-3">
-          <img src={post.avatar} alt={post.user} className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
-          <span className="font-bold text-neutral-900">{post.user}</span>
+          <img src={(post.author?.avatar || `https://picsum.photos/seed/${post.authorId}/40/40`)} alt={(post.author?.nickname || '未知用户')} className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
+          <span className="font-bold text-white">{(post.author?.nickname || '未知用户')}</span>
         </div>
-        <button className="p-2 -mr-2 text-neutral-600 hover:text-neutral-900 transition-colors">
+        <button className="p-2 -mr-2 text-neutral-400 hover:text-white transition-colors">
           <MoreHorizontal className="w-6 h-6" />
         </button>
       </header>
@@ -70,46 +104,46 @@ export default function PostDetail() {
         {post.images.length > 1 && (
           <div className="flex justify-center gap-1.5 mt-3">
             {post.images.map((_, idx) => (
-              <div key={idx} className={cn("w-1.5 h-1.5 rounded-full", idx === 0 ? "bg-red-500" : "bg-neutral-200")} />
+              <div key={idx} className={cn("w-1.5 h-1.5 rounded-full", idx === 0 ? "bg-red-900/200" : "bg-neutral-200")} />
             ))}
           </div>
         )}
 
         <div className="p-4">
-          <p className="text-neutral-900 leading-relaxed whitespace-pre-wrap text-justify">
+          <p className="text-white leading-relaxed whitespace-pre-wrap text-justify">
             {post.content}
           </p>
-          <div className="text-xs text-neutral-400 mt-3">{post.time}</div>
+          <div className="text-xs text-neutral-400 mt-3">{(new Date(post.createdAt).toLocaleString())}</div>
 
           {/* Linked Script */}
           {script && (
-            <Link to={`/script/${script.id}`} className="flex items-center gap-3 bg-neutral-50 p-3 rounded-xl mt-4 border border-neutral-100 active:scale-[0.98] transition-transform">
+            <Link to={`/script/${script.id}`} className="flex items-center gap-3 bg-neutral-900 p-3 rounded-xl mt-4 border border-neutral-800 active:scale-[0.98] transition-transform">
               <img src={script.cover} alt={script.title} className="w-12 h-16 object-cover rounded-lg" referrerPolicy="no-referrer" />
               <div className="flex-1 min-w-0">
-                <h5 className="text-sm font-bold text-neutral-900 truncate">{script.title}</h5>
+                <h5 className="text-sm font-bold text-white truncate">{script.title}</h5>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                    <span className="text-xs text-yellow-600 font-bold">{post.rating}</span>
+                    <span className="text-xs text-yellow-600 font-bold">{(post.rating || 9.0)}</span>
                   </div>
-                  <span className="text-[10px] text-neutral-500 bg-white px-1.5 py-0.5 rounded border border-neutral-200">
+                  <span className="text-[10px] text-neutral-500 bg-neutral-950 px-1.5 py-0.5 rounded border border-neutral-200">
                     {script.difficulty}
                   </span>
                 </div>
               </div>
-              <div className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-full">
+              <div className="px-3 py-1.5 bg-red-900/20 text-red-400 text-xs font-bold rounded-full">
                 去看看
               </div>
             </Link>
           )}
         </div>
 
-        <div className="h-2 bg-neutral-50" />
+        <div className="h-2 bg-neutral-900" />
 
         {/* Comments Section */}
         <div className="p-4">
-          <h3 className="font-bold text-neutral-900 mb-4 flex items-center gap-1">
-            共 {post.comments} 条评论
+          <h3 className="font-bold text-white mb-4 flex items-center gap-1">
+            共 {comments.length} 条评论
           </h3>
           
           <div className="space-y-5">
@@ -124,7 +158,7 @@ export default function PostDetail() {
                       <span className="text-[10px]">{comment.likes}</span>
                     </button>
                   </div>
-                  <p className="text-sm text-neutral-900 leading-relaxed">{comment.content}</p>
+                  <p className="text-sm text-white leading-relaxed">{comment.content}</p>
                   <div className="text-[10px] text-neutral-400 mt-1">{comment.time}</div>
                 </div>
               </div>
@@ -134,7 +168,7 @@ export default function PostDetail() {
       </main>
 
       {/* Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-100 px-4 py-3 flex items-center gap-4 z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-neutral-950 border-t border-neutral-800 px-4 py-3 flex items-center gap-4 z-40">
         <div className="flex-1 relative">
           <input 
             type="text" 
@@ -145,23 +179,23 @@ export default function PostDetail() {
           />
           <button 
             disabled={!commentText.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-red-600 disabled:text-neutral-400 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-red-400 disabled:text-neutral-400 transition-colors"
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <div className="flex items-center gap-4 shrink-0 text-neutral-600">
+        <div className="flex items-center gap-4 shrink-0 text-neutral-400">
           <button 
             onClick={() => setIsLiked(!isLiked)}
             className={cn("flex items-center gap-1 transition-colors", isLiked && "text-red-500")}
           >
             <Heart className={cn("w-6 h-6", isLiked && "fill-red-500")} />
-            <span className="text-xs font-medium">{post.likes + (isLiked ? 1 : 0)}</span>
+            <span className="text-xs font-medium">{(post.likes || 128) + (isLiked ? 1 : 0)}</span>
           </button>
-          <button className="flex items-center gap-1 hover:text-neutral-900 transition-colors">
+          <button className="flex items-center gap-1 hover:text-white transition-colors">
             <Star className="w-6 h-6" />
           </button>
-          <button className="flex items-center gap-1 hover:text-neutral-900 transition-colors">
+          <button className="flex items-center gap-1 hover:text-white transition-colors">
             <Share2 className="w-6 h-6" />
           </button>
         </div>

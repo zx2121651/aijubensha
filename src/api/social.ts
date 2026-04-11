@@ -7,7 +7,16 @@ export const getPosts = () => {
   return request.get('/posts');
 };
 
-export const createPost = (data: { authorId: string, title: string, content: string }) => {
+
+export const getPostDetail = (postId: string) => {
+  return request.get(`/posts/${postId}`);
+};
+
+export const getPostComments = (postId: string) => {
+  return request.get(`/posts/${postId}/comments`);
+};
+
+export const createPost = (data: { authorId: string, title: string, content: string, images?: string[] }) => {
   return request.post('/posts', data);
 };
 
