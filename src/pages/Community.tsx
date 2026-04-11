@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { scripts } from '@/src/data/scripts';
 import { Users, Clock, Search, Filter, Plus, Heart, MessageCircle, Share2, Star, Zap, MapPin, Flame, Hash, Trophy, ChevronRight, Mic, Baby, TrendingUp, HelpCircle, BarChart2, Timer, Camera, AlertTriangle, BookOpen, Headphones, Smile, BrainCircuit, MessageSquare, ShoppingBag, GraduationCap, Crown, UserPlus, Shirt, Beaker, Ticket, Award, Coffee } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import CreatePostModal from '@/src/components/CreatePostModal';
+import { getPosts, createPost } from '@/src/api/social';
+import { motion, AnimatePresence } from 'motion/react';
 import PublicProfileModal from '@/src/components/PublicProfileModal';
 
 interface Team {
@@ -1048,6 +1049,76 @@ export default function Community() {
         onClose={() => setSelectedProfileUser(null)} 
         user={selectedProfileUser} 
       />
+
+      {/* 半屏抽屉：发帖编辑器 */}
+      <AnimatePresence>
+        {isCreatePostDrawerOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => !isSubmitting && setIsCreatePostDrawerOpen(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md bg-neutral-900 border-t border-neutral-800 rounded-t-3xl p-6 shadow-2xl z-10 flex flex-col h-[70vh]"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Edit3 className="w-5 h-5 text-red-500" /> 发布动态
+                </h3>
+                <button
+                  onClick={() => setIsCreatePostDrawerOpen(false)}
+                  disabled={isSubmitting}
+                  className="p-2 hover:bg-neutral-800 rounded-full transition-colors disabled:opacity-50"
+                >
+                  <X className="w-5 h-5 text-neutral-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-4">
+                <input
+                  type="text"
+                  value={newPostTitle}
+                  onChange={e => setNewPostTitle(e.target.value)}
+                  placeholder="加个引人注目的标题吧..."
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 px-4 text-base font-bold focus:outline-none focus:border-red-500 transition-colors"
+                />
+
+                <textarea
+                  value={newPostContent}
+                  onChange={e => setNewPostContent(e.target.value)}
+                  placeholder="记录今天的盘凶过程、对剧本的吐槽，或是给车友的表白..."
+                  className="w-full h-40 bg-neutral-950 border border-neutral-800 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-red-500 transition-colors resize-none"
+                />
+
+                <div className="flex items-center gap-2">
+                  <button className="w-16 h-16 rounded-xl border border-neutral-800 bg-neutral-950 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-white hover:border-neutral-600 transition-colors">
+                    <Camera className="w-5 h-5" />
+                    <span className="text-[10px]">传图片</span>
+                  </button>
+                  <button className="w-16 h-16 rounded-xl border border-neutral-800 bg-neutral-950 flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-white hover:border-neutral-600 transition-colors">
+                    <Hash className="w-5 h-5" />
+                    <span className="text-[10px]">加标签</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-neutral-800 mt-4 pb-safe">
+                <button
+                  onClick={handleCreatePost}
+                  disabled={isSubmitting}
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg flex justify-center items-center gap-2 disabled:opacity-50"
+                >
+                  {isSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '发表动态'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
