@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+flutter_app/
+flutter_app/
