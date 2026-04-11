@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { getScriptDetail, getScriptReviews, createRoom } from '@/src/api/room';
+import { buyScript, getWalletBalance } from '@/src/api/user';
 import { scripts } from '@/src/data/scripts';
 import { ArrowLeft, Star, Clock, Users, Share2, Heart, Play, MessageSquare, Video, Download, Sparkles, X, ChevronLeft, ChevronRight, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -22,8 +24,57 @@ declare const process: any;
 export default function ScriptDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const script = scripts.find(s => s.id === id);
+  const [script, setScript] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [balance, setBalance] = useState<number>(0);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [hasPurchased, setHasPurchased] = useState(false); // 假设返回状态里包含或根据订单推断
+
+  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+  const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
+
+  // Room Creation Form State
+  const [roomName, setRoomName] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [roomPassword, setRoomPassword] = useState('');
+
+  useEffect(() => {
+    const fetchDetail = async () => {
+      setIsLoading(true);
+      try {
+        const [resDetail, resReviews] = await Promise.all([
+          getScriptDetail(id as string),
+          getScriptReviews(id as string).catch(() => ({ data: [] }))
+        ]);
+        setScript(resDetail.data);
+        setReviews(resReviews.data || []);
+        // mock purchased status for now if price is 0
+        if (resDetail.data.price === 0) setHasPurchased(true);
+      } catch (err) {
+        console.error('Failed to load script', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (id) fetchDetail();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.id && isBuyModalOpen) {
+        try {
+          const res = await getWalletBalance(user.id);
+          setBalance(res.data.balance || 0);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+    fetchBalance();
+  }, [isBuyModalOpen]);
+
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isLobbyModalOpen, setIsLobbyModalOpen] = useState(false);
@@ -835,6 +886,173 @@ export default function ScriptDetail() {
         scriptId={script.id}
         scriptTitle={script.title}
       />
+
+      {/* ================= 半屏收银台抽屉 ================= */}
+      {isBuyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsBuyModalOpen(false)} />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="relative w-full max-w-md bg-neutral-900 border-t border-neutral-800 rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl z-10"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">确认订单</h3>
+              <button onClick={() => setIsBuyModalOpen(false)} className="p-2 hover:bg-neutral-800 rounded-full transition-colors">
+                <X className="w-5 h-5 text-neutral-400" />
+              </button>
+            </div>
+
+            <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 mb-6 flex gap-4">
+              <img src={script.cover} alt={script.title} className="w-16 h-24 object-cover rounded-lg shadow-lg" />
+              <div className="flex-1 flex flex-col justify-between py-1">
+                <h4 className="font-bold text-lg leading-tight">{script.title}</h4>
+                <div className="flex justify-between items-end">
+                  <span className="text-sm text-neutral-400">剧本购买</span>
+                  <span className="text-xl font-bold text-red-500">¥{script.price}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-neutral-400">我的钱包余额</span>
+                <span className={cn("font-medium", balance < script.price ? "text-red-400" : "text-white")}>
+                  ¥{balance}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-neutral-400">支付后余额</span>
+                <span className="font-medium text-white">¥{Math.max(0, balance - script.price)}</span>
+              </div>
+            </div>
+
+            {balance < script.price ? (
+              <button
+                onClick={() => navigate('/wallet')}
+                className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors shadow-lg flex justify-center items-center gap-2"
+              >
+                余额不足，去充值
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  try {
+                    await buyScript(script.id);
+                    setHasPurchased(true);
+                    setIsBuyModalOpen(false);
+                    setToastMessage('剧本购买成功，准备开启你的推理之旅吧！');
+                    setTimeout(() => setToastMessage(null), 3000);
+                  } catch (e: any) {
+                    alert(e.response?.data?.message || '购买失败');
+                  }
+                }}
+                className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg flex justify-center items-center gap-2"
+              >
+                确认支付 ¥{script.price}
+              </button>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+
+      {/* ================= 发起组局抽屉 ================= */}
+      {isCreateRoomModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsCreateRoomModalOpen(false)} />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="relative w-full max-w-md bg-neutral-900 border-t border-neutral-800 rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl z-10"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Users className="w-5 h-5 text-red-500" /> 发起组局
+              </h3>
+              <button onClick={() => setIsCreateRoomModalOpen(false)} className="p-2 hover:bg-neutral-800 rounded-full transition-colors">
+                <X className="w-5 h-5 text-neutral-400" />
+              </button>
+            </div>
+
+            <div className="bg-neutral-950/50 p-4 rounded-xl border border-neutral-800 mb-6 flex gap-3">
+              <img src={script.cover} alt={script.title} className="w-12 h-16 object-cover rounded shadow" />
+              <div>
+                <h4 className="font-bold text-base">{script.title}</h4>
+                <p className="text-xs text-neutral-400 mt-1">{script.minPlayers}-{script.maxPlayers}人 · {script.duration}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-neutral-300 ml-1">房间名称</label>
+                <input
+                  type="text"
+                  value={roomName}
+                  onChange={e => setRoomName(e.target.value)}
+                  placeholder="给车队起个响亮的名字吧"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center justify-between bg-neutral-950 border border-neutral-800 p-4 rounded-xl">
+                <div>
+                  <h4 className="text-sm font-medium">私密房间</h4>
+                  <p className="text-xs text-neutral-500">开启后将不会在大厅中公开显示</p>
+                </div>
+                <button
+                  onClick={() => setIsPrivate(!isPrivate)}
+                  className={cn("w-12 h-6 rounded-full transition-colors relative", isPrivate ? "bg-red-600" : "bg-neutral-700")}
+                >
+                  <div className={cn("absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow", isPrivate ? "left-7" : "left-1")} />
+                </button>
+              </div>
+
+              {isPrivate && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-sm font-medium text-neutral-300 ml-1">房间密码 (可选)</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                    <input
+                      type="text"
+                      value={roomPassword}
+                      onChange={e => setRoomPassword(e.target.value)}
+                      placeholder="设置加入密码"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-red-500 transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={async () => {
+                if (!roomName.trim()) return alert('请输入房间名称');
+                try {
+                  const res = await createRoom({
+                    scriptId: script.id,
+                    name: roomName,
+                    isPrivate,
+                    password: roomPassword || undefined
+                  } as any);
+                  setIsCreateRoomModalOpen(false);
+                  navigate(`/room/${res.data.id}`);
+                } catch (e: any) {
+                  alert(e.response?.data?.message || '组局失败，请重试');
+                }
+              }}
+              className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg flex justify-center items-center gap-2 tracking-widest"
+            >
+              立即发车
+            </button>
+          </motion.div>
+        </div>
+      )}
+
     </div>
   );
 }

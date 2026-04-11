@@ -7,54 +7,57 @@ import { cn } from '@/lib/utils';
 export default function Lobby() {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('全部');
+  const [activeRooms, setActiveRooms] = useState<any[]>([]);
+  const [isMatching, setIsMatching] = useState(false);
+  const [matchedData, setMatchedData] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const res = await getRooms();
+        setActiveRooms(res.data || []);
+      } catch (err) {
+        console.error('Failed to fetch rooms', err);
+      }
+    };
+    fetchRooms();
+  }, []);
+
+  const handleAutoMatch = async () => {
+    setIsMatching(true);
+    setMatchedData(null);
+    try {
+      // 故意延迟1-2秒，让雷达动画转一会儿，增强仪式感
+      const minDelay = new Promise(resolve => setTimeout(resolve, 1500));
+      const [res] = await Promise.all([autoMatchRoom(), minDelay]);
+
+      if (res.data?.roomId) {
+         setMatchedData(res.data); // 这会触发 MatchRadar 进入 locked 状态
+      } else {
+         setIsMatching(false);
+      }
+    } catch (error: any) {
+      setIsMatching(false);
+      alert(error.response?.data?.message || '匹配失败');
+    }
+  };
 
   // Mock active rooms data
-  const activeRooms = [
-    {
-      id: 'r1',
-      scriptId: '1',
-      host: { name: '推理大师', avatar: 'https://picsum.photos/seed/h1/100/100' },
-      currentPlayers: 5,
-      targetPlayers: 6,
-      status: 'waiting',
-      tags: ['缺1人', '缺女', '新手友好'],
-      createdAt: '2分钟前'
-    },
-    {
-      id: 'r2',
-      scriptId: '2',
-      host: { name: '情感本天后', avatar: 'https://picsum.photos/seed/h2/100/100' },
-      currentPlayers: 3,
-      targetPlayers: 6,
-      status: 'waiting',
-      tags: ['缺3人', '情感沉浸', '全员戏精'],
-      createdAt: '5分钟前'
-    },
-    {
-      id: 'r3',
-      scriptId: '3',
-      host: { name: '硬核老李', avatar: 'https://picsum.photos/seed/h3/100/100' },
-      currentPlayers: 4,
-      targetPlayers: 5,
-      status: 'waiting',
-      tags: ['缺1人', '缺男', '硬核推理', '禁天眼'],
-      createdAt: '10分钟前'
-    },
-    {
-      id: 'r4',
-      scriptId: '1',
-      host: { name: '欢乐喜剧人', avatar: 'https://picsum.photos/seed/h4/100/100' },
-      currentPlayers: 6,
-      targetPlayers: 6,
-      status: 'playing',
-      tags: ['游戏中', '欢乐机制'],
-      createdAt: '半小时前'
-    }
-  ];
+
 
   const filters = ['全部', '缺男', '缺女', '新手友好', '硬核推理', '情感沉浸'];
 
   return (
+    <>
+      <MatchRadar
+        isMatching={isMatching}
+        matchedData={matchedData}
+        onAnimationComplete={() => {
+          setIsMatching(false);
+          setMatchedData(null);
+          navigate(`/room/${matchedData.roomId}`);
+        }}
+      />
     <div className="min-h-screen bg-neutral-50 pb-8">
       {/* Header */}
       <header className="bg-white px-4 py-4 sticky top-0 z-40 shadow-sm flex items-center justify-between">
@@ -132,7 +135,7 @@ export default function Lobby() {
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 mb-auto">
-                    {room.tags.map(tag => (
+                    {(room.tags || []).map(tag => (
                       <span 
                         key={tag} 
                         className={cn(
@@ -150,15 +153,15 @@ export default function Lobby() {
                   {/* Host & Action */}
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
                     <div className="flex items-center gap-2">
-                      <img src={room.host.avatar} alt={room.host.name} className="w-6 h-6 rounded-full object-cover" referrerPolicy="no-referrer" />
-                      <span className="text-xs text-neutral-600 truncate max-w-[80px]">{room.host.name}</span>
+                      <img src={`https://picsum.photos/seed/${room.id}/100/100`} alt={room.id.substring(0, 5)} className="w-6 h-6 rounded-full object-cover" referrerPolicy="no-referrer" />
+                      <span className="text-xs text-neutral-600 truncate max-w-[80px]">{room.id.substring(0, 5)}</span>
                     </div>
                     
                     <div className="flex items-center gap-3">
                       <div className="text-xs font-bold flex items-center gap-1">
                         <Users className={cn("w-4 h-4", isFull ? "text-neutral-400" : "text-red-500")} />
-                        <span className={isFull ? "text-neutral-500" : "text-red-600"}>{room.currentPlayers}</span>
-                        <span className="text-neutral-400">/{room.targetPlayers}</span>
+                        <span className={isFull ? "text-neutral-500" : "text-red-600"}>{room._count?.players || 0}</span>
+                        <span className="text-neutral-400">/{room.script?.minPlayers || 6}</span>
                       </div>
                       <button 
                         onClick={() => navigate(`/room/${script.id}`)}
@@ -194,5 +197,6 @@ export default function Lobby() {
         <UserPlus className="w-6 h-6" />
       </button>
     </div>
+    </>
   );
 }

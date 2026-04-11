@@ -42,3 +42,10 @@ export const getScriptDetail = (id: string) => {
 export const getScriptReviews = (id: string) => {
   return request.get(`/scripts/${id}/reviews`);
 };
+
+/**
+ * 一键智能匹配入局
+ */
+export const autoMatchRoom = () => {
+  return request.post('/rooms/automatch');
+};

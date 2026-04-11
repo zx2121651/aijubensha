@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { scripts } from '@/src/data/scripts';
 import { ArrowLeft, Users, Check, Clock, ShieldAlert, Play, UserPlus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRoomContext, RoomProvider } from '@/src/context/RoomContext';
 import { motion } from 'motion/react';
 
 interface RoomPlayer {
@@ -15,25 +16,27 @@ interface RoomPlayer {
 }
 
 // 房间组件：玩家在此页面集结，可以选择剧本中的角色，确认准备状态，由房主控制进入游戏。
-export default function Room() {
+function RoomInner() {
   const { id } = useParams();
   const navigate = useNavigate();
   const script = scripts.find(s => s.id === id);
   
   // 模拟当前登录的用户信息（在真实环境中应从鉴权上下文或全局状态中获取）
   // Mock current user
+  const localUser = JSON.parse(localStorage.getItem('user') || '{}');
   const currentUser = {
-    id: 'me',
-    name: '我',
-    avatar: 'https://picsum.photos/seed/me/150/150',
+    id: localUser.id || 'me',
+    name: localUser.nickname || '我',
+    avatar: localUser.avatar || 'https://picsum.photos/seed/me/150/150',
   };
 
   // 管理当前房间内的玩家列表状态
-  const [players, setPlayers] = useState<RoomPlayer[]>([
-    { id: 'me', name: '我', avatar: currentUser.avatar, isReady: false, selectedCharacterId: null, isHost: true },
-    { id: 'p1', name: '推理大师', avatar: 'https://picsum.photos/seed/p1/150/150', isReady: true, selectedCharacterId: script?.characters?.[1]?.id || null },
-    { id: 'p2', name: '戏精本精', avatar: 'https://picsum.photos/seed/p2/150/150', isReady: false, selectedCharacterId: null },
-  ]);
+
+  const { state, joinRoom, toggleReady } = useRoomContext();
+  // 使用 context 的 real players
+  const players = state.players;
+  const isAllReady = players.length > 0 && players.every(p => p.isReady);
+
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [invitedFriends, setInvitedFriends] = useState<string[]>([]);
@@ -51,7 +54,7 @@ export default function Room() {
   const characters = script.characters || [];
   const targetPlayers = script.players.male + script.players.female + script.players.any;
 
-  const myPlayer = players.find(p => p.id === 'me');
+  const myPlayer = players.find(p => p.userId === currentUser.id);
   const isHost = myPlayer?.isHost;
   const allReady = players.every(p => p.isHost || p.isReady) && players.length === targetPlayers;
 
@@ -61,23 +64,17 @@ export default function Room() {
     
     // 检查此角色是否已经被房间内其他玩家选中，实现简单的“防撞车”功能
     // Check if taken by others
-    if (players.some(p => p.id !== 'me' && p.selectedCharacterId === charId)) {
+    if (players.some(p => p.userId !== 'me' && p.selectedCharacterId === charId)) {
       return;
     }
 
     setPlayers(prev => prev.map(p => 
-      p.id === 'me' ? { ...p, selectedCharacterId: p.selectedCharacterId === charId ? null : charId } : p
+      p.userId === 'me' ? { ...p, selectedCharacterId: p.selectedCharacterId === charId ? null : charId } : p
     ));
   };
 
   // 切换当前玩家的准备状态（准备/取消准备）
-  const toggleReady = () => {
-    if (!myPlayer?.selectedCharacterId) return; // 只有在选择了角色之后才能点击准备
-    
-    setPlayers(prev => prev.map(p => 
-      p.id === 'me' ? { ...p, isReady: !p.isReady } : p
-    ));
-  };
+
 
   // 房主点击开始游戏，导航到具体的游戏核心页面
   const startGame = () => {
@@ -319,5 +316,13 @@ export default function Room() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function Room() {
+  return (
+    <RoomProvider>
+      <RoomInner />
+    </RoomProvider>
   );
 }

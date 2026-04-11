@@ -1,332 +1,276 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Settings, ChevronRight, History, Heart, Star, Users, Clock, Edit3, LogOut, Trophy, Target, User } from 'lucide-react';
-import { scripts } from '@/src/data/scripts';
+import { Settings, ChevronRight, History, Heart, Star, Edit3, LogOut, Trophy, Target, User, X, Check, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// Mock User Data
-const defaultUserProfile = {
-  name: '剧本杀老司机',
-  id: 'ID: 839201',
-  avatar: 'https://picsum.photos/seed/u1/150/150',
-  bio: '推理无情，沉浸有爱。',
-  stats: {
-    played: 42,
-    favorites: 15,
-    reviews: 8
-  }
-};
-
-// Mock History Data
-const playHistory = [
-  { id: 'h1', scriptId: '1', role: '林少爷', date: '2023-10-01', dm: '小黑', location: '线上车队' },
-  { id: 'h2', scriptId: '3', role: '神秘人', date: '2023-09-15', dm: '阿白', location: '迷雾推理馆' }
-];
-
-// Mock Favorites Data
-const favoriteIds = ['2', '5'];
+import { getUserProfile, updateUserProfile } from '@/src/api/user';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState<'history' | 'favorites'>('history');
-  const [user, setUser] = useState<{ email: string, username: string, avatar: string } | null>(null);
-  const [avatar, setAvatar] = useState(defaultUserProfile.avatar);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
+  // State to hold the real user profile data
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // State for the Edit BottomSheet Modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editNickname, setEditNickname] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Local storage user object (for the ID and basic offline fallback)
+  const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+  const fetchProfile = async () => {
+    if (!localUser?.id) {
+      navigate('/auth');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await getUserProfile(localUser.id);
+      setProfileData(res.data);
+      setEditNickname(res.data.nickname);
+      setEditAvatar(res.data.avatar || `https://picsum.photos/seed/${res.data.id}/150/150`);
+    } catch (err: any) {
+      console.error(err);
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/auth');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      setAvatar(parsedUser.avatar || defaultUserProfile.avatar);
-    }
-    
-    const savedAvatar = localStorage.getItem('user_avatar');
-    if (savedAvatar) {
-      setAvatar(savedAvatar);
-    }
+    fetchProfile();
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    setUser(null);
+    localStorage.removeItem('token');
+    navigate('/auth');
   };
 
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setAvatar(base64String);
-        localStorage.setItem('user_avatar', base64String);
-      };
-      reader.readAsDataURL(file);
+  const handleSaveProfile = async () => {
+    if (!editNickname.trim()) return alert('昵称不能为空');
+    setIsSaving(true);
+    try {
+      await updateUserProfile({
+        userId: localUser.id,
+        nickname: editNickname,
+        avatar: editAvatar
+      });
+      // 局部更新成功，重拉数据
+      await fetchProfile();
+      // 同步到本地缓存
+      localStorage.setItem('user', JSON.stringify({
+        ...localUser,
+        nickname: editNickname,
+        avatar: editAvatar
+      }));
+      setIsEditModalOpen(false);
+      // Optional: show a quick success toast
+      alert('资料更新成功！');
+    } catch (err: any) {
+      alert(err.response?.data?.message || '保存失败');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const favoriteScripts = scripts.filter(s => favoriteIds.includes(s.id));
-  const historyScripts = playHistory.map(h => ({
-    ...h,
-    script: scripts.find(s => s.id === h.scriptId)
-  })).filter(h => h.script);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-white pb-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600" />
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-white pb-20">
+        <div className="text-center">
+          <p className="text-neutral-500 mb-4">加载用户信息失败</p>
+          <button onClick={() => navigate('/auth')} className="text-red-500 hover:underline">重新登录</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-neutral-50 pb-20">
-      {/* Header Profile Section */}
-      <div className="bg-white px-4 pt-8 pb-6 shadow-sm relative">
-        <div className="absolute top-4 right-4 flex gap-3">
-          {user && (
-            <button onClick={handleLogout} className="text-neutral-600 hover:text-red-600 transition-colors">
-              <LogOut className="w-5 h-5" />
+    <div className="min-h-screen bg-neutral-950 text-white pb-24 font-sans relative">
+      {/* 顶部背景装饰 */}
+      <div className="h-48 bg-gradient-to-br from-red-900/40 via-neutral-900 to-neutral-950 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 rounded-full blur-[80px]" />
+      </div>
+
+      <div className="px-6 -mt-16 relative z-10">
+        {/* 用户信息卡片 */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative">
+          <button
+            onClick={() => navigate('/settings')}
+            className="absolute top-4 right-4 p-2 bg-neutral-800/50 hover:bg-neutral-800 rounded-full transition-colors"
+          >
+            <Settings className="w-5 h-5 text-neutral-400" />
+          </button>
+
+          <div className="flex flex-col items-center">
+            <div className="relative group cursor-pointer" onClick={() => setIsEditModalOpen(true)}>
+              <div className="w-24 h-24 rounded-full border-4 border-neutral-900 shadow-xl overflow-hidden bg-neutral-800">
+                <img
+                  src={profileData.avatar || `https://picsum.photos/seed/${profileData.id}/150/150`}
+                  alt={profileData.nickname}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Edit3 className="w-6 h-6 text-white" />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-black mt-4 tracking-tight flex items-center gap-2">
+              {profileData.nickname}
+            </h2>
+            <p className="text-neutral-500 text-xs mt-1 bg-neutral-950 px-3 py-1 rounded-full border border-neutral-800">
+              UID: {profileData.id.split('-')[0]}
+            </p>
+
+            <p className="text-neutral-400 text-sm mt-4 text-center px-4 line-clamp-2">
+              {profileData.bio || '这个剧本人很懒，还没有写个性签名...'}
+            </p>
+
+            <button 
+              onClick={() => setIsEditModalOpen(true)}
+              className="mt-4 text-xs font-bold text-red-400 bg-red-500/10 px-4 py-2 rounded-full flex items-center gap-1 hover:bg-red-500/20 transition-colors"
+            >
+              <Edit3 className="w-3 h-3" /> 编辑资料
             </button>
-          )}
-          <Link to="/settings" className="text-neutral-600 hover:text-neutral-900">
-            <Settings className="w-6 h-6" />
+
+            {/* 核心数据统计 */}
+            <div className="grid grid-cols-3 gap-4 w-full mt-8 pt-6 border-t border-neutral-800/50">
+              <div className="text-center">
+                <p className="text-2xl font-black text-white">{profileData.stats?.played || 0}</p>
+                <p className="text-[10px] text-neutral-500 uppercase tracking-wider mt-1">参与对局</p>
+              </div>
+              <div className="text-center relative">
+                <div className="absolute inset-y-0 -left-2 w-px bg-neutral-800/50" />
+                <p className="text-2xl font-black text-white">{profileData.stats?.mvp || 0}</p>
+                <p className="text-[10px] text-neutral-500 uppercase tracking-wider mt-1">获得MVP</p>
+                <div className="absolute inset-y-0 -right-2 w-px bg-neutral-800/50" />
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-white">{profileData.stats?.reviews || 0}</p>
+                <p className="text-[10px] text-neutral-500 uppercase tracking-wider mt-1">撰写长评</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 商业与社交快捷入口 */}
+        <div className="grid grid-cols-2 gap-4 mt-6">
+          <Link to="/wallet" className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center gap-3 hover:bg-neutral-800/80 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <Trophy className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">我的钱包</h3>
+              <p className="text-xs text-neutral-500">充值与流水</p>
+            </div>
+          </Link>
+          <Link to="/inventory" className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center gap-3 hover:bg-neutral-800/80 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+              <Star className="w-5 h-5 text-purple-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">个性装扮</h3>
+              <p className="text-xs text-neutral-500">头像框气泡</p>
+            </div>
           </Link>
         </div>
-        
-        {user ? (
-          <div className="flex items-center gap-4 mt-4">
-            <div className="relative cursor-pointer" onClick={handleAvatarClick}>
-              <img 
-                src={avatar} 
-                alt="avatar" 
-                className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md"
-                referrerPolicy="no-referrer"
-              />
-              <button className="absolute bottom-0 right-0 bg-neutral-900 text-white p-1.5 rounded-full border-2 border-white hover:bg-neutral-800 transition-colors">
-                <Edit3 className="w-3 h-3" />
-              </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept="image/*" 
-                className="hidden" 
-              />
-            </div>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-neutral-900">{user.username}</h1>
-              <p className="text-xs text-neutral-500 mt-1">{user.email}</p>
-              <p className="text-sm text-neutral-600 mt-2">{defaultUserProfile.bio}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-8">
-            <div className="w-20 h-20 bg-neutral-200 rounded-full flex items-center justify-center mb-4">
-              <User className="w-10 h-10 text-neutral-400" />
-            </div>
-            <h2 className="text-lg font-bold text-neutral-900 mb-2">未登录</h2>
-            <p className="text-sm text-neutral-500 mb-6">登录后可查看游戏记录和收藏</p>
-            <button 
-              onClick={() => navigate('/auth')}
-              className="px-8 py-2.5 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition-colors"
+
+        {/* 底部退出登录 */}
+        <button 
+          onClick={handleLogout}
+          className="w-full mt-8 p-4 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-2xl flex justify-center items-center gap-2 text-red-500 font-bold transition-colors"
+        >
+          <LogOut className="w-4 h-4" /> 退出当前账号
+        </button>
+      </div>
+
+      {/* ================= 半屏编辑资料抽屉 ================= */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => !isSaving && setIsEditModalOpen(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md bg-neutral-900 border-t border-neutral-800 rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl z-10"
             >
-              去登录 / 注册
-            </button>
-          </div>
-        )}
-
-        {/* Stats */}
-        {user && (
-          <div className="flex justify-between mt-6 px-4 py-4 bg-neutral-50 rounded-2xl border border-neutral-100">
-            <div className="text-center">
-              <p className="text-2xl font-black text-neutral-900">{defaultUserProfile.stats.played}</p>
-              <p className="text-xs text-neutral-500 mt-1 font-medium">已玩剧本</p>
-            </div>
-            <div className="w-px bg-neutral-200" />
-            <div className="text-center">
-              <p className="text-2xl font-black text-neutral-900">12</p>
-              <p className="text-xs text-neutral-500 mt-1 font-medium">MVP次数</p>
-            </div>
-            <div className="w-px bg-neutral-200" />
-            <div className="text-center">
-              <p className="text-2xl font-black text-neutral-900">85%</p>
-              <p className="text-xs text-neutral-500 mt-1 font-medium">逃脱率</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {user && (
-        <>
-          {/* Achievements & Wallet */}
-          <div className="px-4 mt-4 flex gap-3">
-            <Link to="/achievements" className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-neutral-100 flex items-center justify-between hover:bg-neutral-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
-                  <Trophy className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-neutral-900">成就徽章</h3>
-                  <p className="text-[10px] text-neutral-500 mt-0.5">已解锁 15/42</p>
-                </div>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <User className="w-5 h-5 text-red-500" /> 编辑个人资料
+                </h3>
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={isSaving}
+                  className="p-2 hover:bg-neutral-800 rounded-full transition-colors disabled:opacity-50"
+                >
+                  <X className="w-5 h-5 text-neutral-400" />
+                </button>
               </div>
-            </Link>
-            
-            <Link to="/wallet" className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-neutral-100 flex items-center justify-between hover:bg-neutral-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
-                  <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">¥</div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-neutral-900">我的钱包</h3>
-                  <p className="text-[10px] text-neutral-500 mt-0.5 text-red-600 font-bold">12,500 金币</p>
-                </div>
-              </div>
-            </Link>
-          </div>
 
-          {/* Quick Links */}
-          <div className="px-4 mt-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
-              <Link to="/inventory" className="flex items-center justify-between p-4 hover:bg-neutral-50 transition-colors border-b border-neutral-50">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+              <div className="space-y-6 mb-8">
+                {/* 头像预览与输入 (简化处理，支持直接填URL或者随机生成) */}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full border-2 border-neutral-800 overflow-hidden bg-neutral-800 shrink-0">
+                    <img src={editAvatar || `https://picsum.photos/seed/${profileData.id}/150/150`} alt="preview" className="w-full h-full object-cover" />
                   </div>
-                  <span className="font-bold text-neutral-900 text-sm">我的背包</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-neutral-400" />
-              </Link>
-              <Link to="/clubs" className="flex items-center justify-between p-4 hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
-                  </div>
-                  <span className="font-bold text-neutral-900 text-sm">我的俱乐部</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-neutral-400" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="sticky top-0 z-30 bg-white border-b border-neutral-100 flex mt-4">
-        <button 
-          onClick={() => setActiveTab('history')}
-          className={cn(
-            "flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative",
-            activeTab === 'history' ? "text-red-600" : "text-neutral-500"
-          )}
-        >
-          <History className="w-4 h-4" />
-          我的战绩
-          {activeTab === 'history' && (
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-red-600 rounded-t-full" />
-          )}
-        </button>
-        <button 
-          onClick={() => setActiveTab('favorites')}
-          className={cn(
-            "flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative",
-            activeTab === 'favorites' ? "text-red-600" : "text-neutral-500"
-          )}
-        >
-          <Heart className="w-4 h-4" />
-          我的收藏
-          {activeTab === 'favorites' && (
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-red-600 rounded-t-full" />
-          )}
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="p-4">
-        {activeTab === 'history' && (
-          <div className="space-y-4">
-            {historyScripts.map((item) => (
-              <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-100">
-                <div className="flex justify-between items-center mb-3 pb-3 border-b border-neutral-100">
-                  <span className="text-xs text-neutral-500">{item.date}</span>
-                  <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-sm">已完成</span>
-                </div>
-                <Link to={`/script/${item.scriptId}`} className="flex gap-4">
-                  <img 
-                    src={item.script!.cover} 
-                    alt={item.script!.title} 
-                    className="w-16 h-24 object-cover rounded-lg shrink-0"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-bold text-neutral-900 mb-1">{item.script!.title}</h3>
-                    <div className="text-xs text-neutral-600 space-y-1">
-                      <p><span className="text-neutral-400">扮演角色：</span>{item.role}</p>
-                      <p><span className="text-neutral-400">组局地点：</span>{item.location}</p>
-                      <p><span className="text-neutral-400">主持人：</span>{item.dm}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-neutral-300 self-center" />
-                </Link>
-                <div className="mt-4 flex gap-2">
-                  <button className="flex-1 py-2 bg-neutral-50 text-neutral-600 text-xs font-bold rounded-lg hover:bg-neutral-100 transition-colors">
-                    写评价
-                  </button>
-                  <button className="flex-1 py-2 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors">
-                    再组一局
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'favorites' && (
-          <div className="space-y-4">
-            {favoriteScripts.map(script => (
-              <Link key={script.id} to={`/script/${script.id}`} className="block bg-white rounded-2xl p-3 shadow-sm border border-neutral-100 hover:shadow-md transition-shadow">
-                <div className="flex gap-4">
-                  <div className="relative w-20 h-28 shrink-0">
-                    <img 
-                      src={script.cover} 
-                      alt={script.title} 
-                      className="w-full h-full object-cover rounded-xl"
-                      referrerPolicy="no-referrer"
+                  <div className="space-y-1.5 flex-1">
+                    <label className="text-xs font-medium text-neutral-400 ml-1">头像图片链接 (URL)</label>
+                    <input
+                      type="text"
+                      value={editAvatar}
+                      onChange={e => setEditAvatar(e.target.value)}
+                      placeholder="填入 http://..."
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:border-red-500 transition-colors"
                     />
-                    <div className="absolute top-1 right-1 bg-black/60 backdrop-blur-md text-white text-[10px] px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      <span>{script.rating}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 flex flex-col py-1">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-neutral-900 text-base leading-tight mb-1">{script.title}</h3>
-                      <Heart className="w-4 h-4 text-red-500 fill-red-500" />
-                    </div>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {script.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-sm">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-xs text-neutral-500 mt-auto">
-                      <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {script.players.male + script.players.female + script.players.any}人</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {script.duration}</span>
-                    </div>
                   </div>
                 </div>
-              </Link>
-            ))}
-            
-            {favoriteScripts.length === 0 && (
-              <div className="text-center py-12 text-neutral-400">
-                <Heart className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>暂无收藏剧本</p>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-neutral-400 ml-1">展示昵称</label>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    value={editNickname}
+                    onChange={e => setEditNickname(e.target.value)}
+                    placeholder="给自己起个霸气的推理名"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 px-4 focus:outline-none focus:border-red-500 transition-colors font-medium"
+                  />
+                  <p className="text-[10px] text-neutral-600 text-right mt-1">{editNickname.length}/16</p>
+                </div>
               </div>
-            )}
+
+              <button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isSaving ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Save className="w-5 h-5" /> 保存修改</>}
+              </button>
+            </motion.div>
           </div>
         )}
-      </div>
-      </>
-      )}
+      </AnimatePresence>
     </div>
   );
 }
