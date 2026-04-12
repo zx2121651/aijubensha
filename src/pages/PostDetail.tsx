@@ -1,12 +1,39 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import React from 'react';
 import { useEffect } from 'react';
 import { getPostDetail, getPostComments, commentOnPost } from '@/src/api/social';
 import { ArrowLeft, Heart, MessageCircle, Share2, MoreHorizontal, Star, Send } from 'lucide-react';
 import { scripts } from '@/src/data/scripts';
+import CommentItem from '@/src/components/community/CommentItem';
 import { cn } from '@/lib/utils';
+import { useBottomSheet } from '@/src/context/BottomSheetContext';
 
 export default function PostDetail() {
+  const { showBottomSheet, hideBottomSheet } = useBottomSheet();
+
+  const showPostActions = () => {
+    showBottomSheet(
+      <div className="p-4 flex flex-col gap-2">
+        <div className="w-full text-center text-white font-bold mb-4">帖子操作</div>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 rounded-xl active:scale-[0.98] transition-transform text-white w-full text-left" onClick={() => { alert('链接已复制'); hideBottomSheet(); }}>
+          <LinkIcon className="w-5 h-5 text-neutral-400" />
+          复制链接
+        </button>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 rounded-xl active:scale-[0.98] transition-transform text-red-500 w-full text-left" onClick={() => { alert('举报已提交'); hideBottomSheet(); }}>
+          <Flag className="w-5 h-5 text-red-500" />
+          举报该内容
+        </button>
+        {post?.authorId === localUser?.id && (
+          <button className="flex items-center gap-3 p-4 bg-neutral-800 rounded-xl active:scale-[0.98] transition-transform text-red-500 w-full text-left" onClick={() => { alert('帖子已删除'); navigate('-1'); hideBottomSheet(); }}>
+            <Trash2 className="w-5 h-5 text-red-500" />
+            删除帖子
+          </button>
+        )}
+        <button className="w-full p-4 mt-2 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform" onClick={hideBottomSheet}>取消</button>
+      </div>
+    );
+  };
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -43,6 +70,47 @@ export default function PostDetail() {
     fetchPostData();
   }, [id]);
 
+  const [replyTarget, setReplyTarget] = useState<any>(null);
+  const commentInputRef = React.useRef<HTMLInputElement>(null);
+
+  const showCommentOptions = (comment: any) => {
+    showBottomSheet(
+      <div className="p-4 flex flex-col gap-2">
+        <div className="w-full text-center text-white font-bold mb-4">评论操作</div>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform text-left"
+          onClick={() => {
+             hideBottomSheet();
+             setReplyTarget(comment);
+             setTimeout(() => commentInputRef.current?.focus(), 300);
+          }}>
+          <MessageCircle className="w-5 h-5 text-neutral-400" />
+          回复 @{comment.user}
+        </button>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform text-left"
+          onClick={() => {
+             alert('已点赞');
+             hideBottomSheet();
+          }}>
+          <ThumbsUp className="w-5 h-5 text-neutral-400" />
+          点赞此条评论
+        </button>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform text-left"
+          onClick={() => {
+             navigator.clipboard.writeText(comment.content);
+             alert('已复制到剪贴板');
+             hideBottomSheet();
+          }}>
+          <Copy className="w-5 h-5 text-neutral-400" />
+          复制内容
+        </button>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-red-500 rounded-xl active:scale-[0.98] transition-transform text-left" onClick={() => { alert('举报已提交'); hideBottomSheet(); }}>
+          <Flag className="w-5 h-5 text-red-500" />
+          举报评论
+        </button>
+        <button className="w-full p-4 mt-2 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform" onClick={hideBottomSheet}>取消</button>
+      </div>
+    );
+  };
   const handleCommentSubmit = async () => {
     if (!commentText.trim()) return alert('评论内容不能为空');
     if (!localUser.id) return alert('请先登录');
@@ -71,14 +139,14 @@ export default function PostDetail() {
     <div className="min-h-screen bg-neutral-950 pb-20">
       {/* Header */}
       <header className="bg-neutral-950 px-4 py-3 sticky top-0 z-40 flex items-center justify-between border-b border-neutral-800">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-neutral-400 hover:text-white transition-colors">
+        <button onClick={() => { setReplyTarget(null); navigate(-1); }} className="p-2 -ml-2 text-neutral-400 hover:text-white transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 active:scale-95 transition-transform" onClick={() => navigate(`/user/${post.authorId}`)}>
           <img src={(post.author?.avatar || `https://picsum.photos/seed/${post.authorId}/40/40`)} alt={(post.author?.nickname || '未知用户')} className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
           <span className="font-bold text-white">{(post.author?.nickname || '未知用户')}</span>
         </div>
-        <button className="p-2 -mr-2 text-neutral-400 hover:text-white transition-colors">
+        <button onClick={showPostActions} className="p-2 -mr-2 text-neutral-400 hover:text-white transition-colors">
           <MoreHorizontal className="w-6 h-6" />
         </button>
       </header>
@@ -145,23 +213,9 @@ export default function PostDetail() {
           <h3 className="font-bold text-white mb-4 flex items-center gap-1">
             共 {comments.length} 条评论
           </h3>
-          
           <div className="space-y-5">
             {comments.map(comment => (
-              <div key={comment.id} className="flex gap-3">
-                <img src={comment.avatar} alt={comment.user} className="w-8 h-8 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-neutral-500">{comment.user}</span>
-                    <button className="flex items-center gap-1 text-neutral-400 hover:text-red-500 transition-colors">
-                      <Heart className="w-3 h-3" />
-                      <span className="text-[10px]">{comment.likes}</span>
-                    </button>
-                  </div>
-                  <p className="text-sm text-white leading-relaxed">{comment.content}</p>
-                  <div className="text-[10px] text-neutral-400 mt-1">{comment.time}</div>
-                </div>
-              </div>
+              <CommentItem key={comment.id} comment={comment} onReplyClick={showCommentOptions} />
             ))}
           </div>
         </div>
@@ -174,7 +228,8 @@ export default function PostDetail() {
             type="text" 
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder="说点什么..." 
+            ref={commentInputRef}
+            placeholder={replyTarget ? `回复 @${replyTarget.user}:` : "说点什么..."}
             className="w-full bg-neutral-100 rounded-full py-2 pl-4 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 transition-all"
           />
           <button 
