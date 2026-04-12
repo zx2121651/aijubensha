@@ -128,6 +128,29 @@ export default function UserProfile() {
         </div>
       </div>
 
+      {/* 公开成就库 */}
+      <div className="px-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-white">公开成就 (12)</h2>
+          <button className="text-xs text-neutral-500">全部<ArrowLeft className="w-3 h-3 inline rotate-180"/></button>
+        </div>
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+          {[
+            { id: 1, name: '天眼玩家', icon: '👁️', desc: '完成10次无错推理' },
+            { id: 2, name: '搜证犬', icon: '🐕', desc: '单局找到15个线索' },
+            { id: 3, name: '连环凶手', icon: '🔪', desc: '成功逃脱3次' },
+            { id: 4, name: '最佳戏精', icon: '🎭', desc: '剧场模式获得满分' }
+          ].map(ach => (
+            <div key={ach.id} className="flex flex-col items-center gap-2 min-w-[72px] shrink-0 active:scale-95 transition-transform">
+              <div className="w-14 h-14 rounded-full bg-neutral-900 border-2 border-neutral-800 flex items-center justify-center text-2xl shadow-inner">
+                {ach.icon}
+              </div>
+              <div className="text-[10px] text-neutral-300 font-bold whitespace-nowrap">{ach.name}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="h-2 w-full bg-neutral-900" />
 
       <div className="sticky top-14 z-30 bg-neutral-950 border-b border-neutral-900 flex px-4">
