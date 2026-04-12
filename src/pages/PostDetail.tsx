@@ -77,20 +77,40 @@ export default function PostDetail() {
     showBottomSheet(
       <div className="p-4 flex flex-col gap-2">
         <div className="w-full text-center text-white font-bold mb-4">评论操作</div>
-        <button className="w-full p-4 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform text-left"
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform text-left"
           onClick={() => {
              hideBottomSheet();
              setReplyTarget(comment);
              setTimeout(() => commentInputRef.current?.focus(), 300);
           }}>
+          <MessageCircle className="w-5 h-5 text-neutral-400" />
           回复 @{comment.user}
         </button>
-        <button className="w-full p-4 bg-neutral-800 text-red-500 rounded-xl active:scale-[0.98] transition-transform text-left" onClick={() => { alert('举报已提交'); hideBottomSheet(); }}>举报评论</button>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform text-left"
+          onClick={() => {
+             alert('已点赞');
+             hideBottomSheet();
+          }}>
+          <ThumbsUp className="w-5 h-5 text-neutral-400" />
+          点赞此条评论
+        </button>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform text-left"
+          onClick={() => {
+             navigator.clipboard.writeText(comment.content);
+             alert('已复制到剪贴板');
+             hideBottomSheet();
+          }}>
+          <Copy className="w-5 h-5 text-neutral-400" />
+          复制内容
+        </button>
+        <button className="flex items-center gap-3 p-4 bg-neutral-800 text-red-500 rounded-xl active:scale-[0.98] transition-transform text-left" onClick={() => { alert('举报已提交'); hideBottomSheet(); }}>
+          <Flag className="w-5 h-5 text-red-500" />
+          举报评论
+        </button>
         <button className="w-full p-4 mt-2 bg-neutral-800 text-white rounded-xl active:scale-[0.98] transition-transform" onClick={hideBottomSheet}>取消</button>
       </div>
     );
   };
-
   const handleCommentSubmit = async () => {
     if (!commentText.trim()) return alert('评论内容不能为空');
     if (!localUser.id) return alert('请先登录');
