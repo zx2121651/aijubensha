@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, UserPlus, MessageCircle, MapPin, Calendar, Heart, ShieldAlert, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, UserPlus, MessageCircle, MapPin, Calendar, Heart, ShieldAlert, MoreHorizontal, Star } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useBottomSheet } from '@/src/context/BottomSheetContext';
 
@@ -10,7 +10,6 @@ export default function UserProfile() {
   const { showBottomSheet, hideBottomSheet } = useBottomSheet();
   const { scrollY } = useScroll();
 
-  // 模拟假数据
   const mockUser = {
     id: id || '123',
     nickname: '推理大师_Seven',
@@ -28,7 +27,6 @@ export default function UserProfile() {
 
   const [activeTab, setActiveTab] = useState<'posts'|'scripts'>('posts');
 
-  // 滑动渐变 AppBar
   const headerOpacity = useTransform(scrollY, [0, 150], [0, 1]);
   const headerY = useTransform(scrollY, [0, 150], [-20, 0]);
 
@@ -53,7 +51,6 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white pb-20 relative">
-      {/* 渐变吸顶 Header */}
       <motion.header
         style={{ opacity: headerOpacity, y: headerY }}
         className="fixed top-0 left-0 right-0 h-14 bg-neutral-950/90 backdrop-blur-md z-50 flex items-center justify-between px-4 border-b border-neutral-800"
@@ -69,7 +66,6 @@ export default function UserProfile() {
         </button>
       </motion.header>
 
-      {/* 沉浸式背景大图 */}
       <div className="relative w-full h-64 sm:h-80">
         <img src={mockUser.background} alt="background" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/40 to-transparent" />
@@ -82,7 +78,6 @@ export default function UserProfile() {
         </button>
       </div>
 
-      {/* 资料面板 */}
       <div className="px-4 relative -mt-16 z-10">
         <div className="flex justify-between items-end mb-3">
           <div className="relative">
@@ -93,7 +88,7 @@ export default function UserProfile() {
           </div>
 
           <div className="flex gap-2 mb-2">
-            <button className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-white active:scale-95 transition-transform">
+            <button className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-white active:scale-95 transition-transform" onClick={() => navigate(`/chat/${mockUser.id}`)}>
               <MessageCircle className="w-5 h-5" />
             </button>
             <button className="px-6 h-10 rounded-full bg-red-600 text-white font-bold flex items-center gap-1 active:scale-95 transition-transform">
@@ -107,11 +102,11 @@ export default function UserProfile() {
         <p className="text-sm text-neutral-400 mb-4">{mockUser.signature}</p>
 
         <div className="flex gap-6 mb-4">
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center cursor-pointer active:opacity-50 transition-opacity" onClick={() => navigate(`/followers/${mockUser.id}?tab=following`)}>
             <span className="text-lg font-bold text-white">{mockUser.following}</span>
             <span className="text-xs text-neutral-500">关注</span>
           </div>
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center cursor-pointer active:opacity-50 transition-opacity" onClick={() => navigate(`/followers/${mockUser.id}?tab=fans`)}>
             <span className="text-lg font-bold text-white">{mockUser.fans}</span>
             <span className="text-xs text-neutral-500">粉丝</span>
           </div>
@@ -135,7 +130,6 @@ export default function UserProfile() {
 
       <div className="h-2 w-full bg-neutral-900" />
 
-      {/* 底部动态 Tab */}
       <div className="sticky top-14 z-30 bg-neutral-950 border-b border-neutral-900 flex px-4">
         <button
           onClick={() => setActiveTab('posts')}
@@ -153,25 +147,48 @@ export default function UserProfile() {
         </button>
       </div>
 
-      {/* 列表区占位 */}
-      <div className="p-4 flex flex-col items-center justify-center opacity-50 py-20">
+      <div className="p-4 flex flex-col items-center justify-center pb-20">
         {activeTab === 'posts' ? (
-           <div className="text-center text-sm text-neutral-500">
-             <div className="w-16 h-16 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-3">
-               <Heart className="w-6 h-6 text-neutral-700" />
-             </div>
-             暂无动态
+           <div className="flex flex-col gap-4 w-full">
+             {[1,2,3].map(i => (
+               <div key={i} className="bg-neutral-900 rounded-xl p-4 text-left">
+                 <p className="text-sm text-white mb-2 leading-relaxed">终于打完了《死光法则》，推土机表示极度舒适！这本子的反转绝了，dm的节奏也带得特别好。强推给大家！</p>
+                 <div className="flex gap-2 mb-3">
+                   <img src={`https://picsum.photos/seed/post${i}/100/100`} className="w-24 h-24 rounded-lg object-cover" alt="postimg" />
+                 </div>
+                 <div className="flex items-center gap-4 text-neutral-500 text-xs">
+                   <span>2024-05-1{i}</span>
+                   <span className="flex items-center gap-1"><Heart className="w-3 h-3"/> 12{i}</span>
+                   <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3"/> 4{i}</span>
+                 </div>
+               </div>
+             ))}
            </div>
         ) : (
-           <div className="text-center text-sm text-neutral-500">
-             <div className="w-16 h-16 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-3">
-               <Calendar className="w-6 h-6 text-neutral-700" />
-             </div>
-             TA还没标记过剧本
+           <div className="flex flex-col gap-3 w-full">
+             {[1,2].map(i => (
+               <div key={i} className="flex gap-3 bg-neutral-900 p-3 rounded-xl border border-neutral-800">
+                 <img src={`https://picsum.photos/seed/script${i}/60/80`} className="w-16 h-24 rounded-lg object-cover" alt="scriptimg" />
+                 <div className="flex-1 flex flex-col justify-between py-1">
+                   <div>
+                     <div className="text-sm font-bold text-white">第七号嫌疑人</div>
+                     <div className="text-xs text-neutral-400 mt-1 flex gap-2">
+                       <span>硬核推理</span>
+                       <span>6人本</span>
+                     </div>
+                   </div>
+                   <div className="flex items-center justify-between mt-2">
+                     <div className="flex items-center gap-1 text-yellow-500">
+                       <Star className="w-3 h-3 fill-yellow-500"/> <span className="text-xs font-bold">9.2</span>
+                     </div>
+                     <span className="text-[10px] text-neutral-500 bg-neutral-950 px-2 py-0.5 rounded-full">已玩过</span>
+                   </div>
+                 </div>
+               </div>
+             ))}
            </div>
         )}
       </div>
-
     </div>
   );
 }

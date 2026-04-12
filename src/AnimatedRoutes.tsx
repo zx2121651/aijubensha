@@ -19,6 +19,8 @@ import Leaderboard from './pages/Leaderboard';
 import Lobby from './pages/Lobby';
 import PostDetail from './pages/PostDetail';
 import UserProfile from './pages/UserProfile';
+import FollowersList from './pages/FollowersList';
+import ChatDetail from './pages/ChatDetail';
 import Wallet from './pages/Wallet';
 import Inventory from './pages/Inventory';
 import Clubs from './pages/Clubs';
@@ -52,6 +54,8 @@ export default function AnimatedRoutes() {
           <Route path="/messages" element={<PageWrapper><Messages /></PageWrapper>} />
           <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
           <Route path="/user/:id" element={<PageWrapper><UserProfile /></PageWrapper>} />
+          <Route path="/followers/:id" element={<PageWrapper><FollowersList /></PageWrapper>} />
+          <Route path="/chat/:id" element={<PageWrapper><ChatDetail /></PageWrapper>} />
         </Route>
 
         <Route path="/lobby" element={<PageWrapper><Lobby /></PageWrapper>} />
