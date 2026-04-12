@@ -15,6 +15,9 @@ export default function ChatDetail() {
     { id: 3, sender: 'other', text: '缺一个男位，打《死光法则》，上车不？', time: '14:26' },
   ]);
   const [inputText, setInputText] = useState('');
+  const [showEmoji, setShowEmoji] = useState(false);
+
+  const EMOJIS = ['😂', '😭', '🥺', '🤣', '❤️', '✨', '👍', '🙏', '🤔', '🥳', '😎', '🔥'];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,6 +36,11 @@ export default function ChatDetail() {
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
     }]);
     setInputText('');
+    setShowEmoji(false);
+  };
+
+  const handleEmojiClick = (emoji: string) => {
+    setInputText(prev => prev + emoji);
   };
 
   const showMoreOptions = () => {
@@ -58,7 +66,13 @@ export default function ChatDetail() {
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-neutral-400 hover:text-white transition-colors">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <span className="font-bold text-base">推理大师_Seven</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-base">推理大师_Seven</span>
+            <span className="text-[10px] text-green-500 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"/>
+              当前在线
+            </span>
+          </div>
         </div>
         <button onClick={showMoreOptions} className="p-2 -mr-2 text-neutral-400 hover:text-white transition-colors">
           <MoreHorizontal className="w-6 h-6" />
@@ -66,7 +80,7 @@ export default function ChatDetail() {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" onClick={() => setShowEmoji(false)}>
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex gap-2 max-w-[75%] ${msg.sender === 'me' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -87,25 +101,44 @@ export default function ChatDetail() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Emoji Panel */}
+      {showEmoji && (
+        <div className="bg-neutral-900 border-t border-neutral-800 p-4 grid grid-cols-6 gap-4 shrink-0 transition-all">
+          {EMOJIS.map(emoji => (
+            <button
+              key={emoji}
+              onClick={() => handleEmojiClick(emoji)}
+              className="text-2xl hover:scale-110 active:scale-95 transition-transform"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Input Area */}
-      <div className="bg-neutral-900 px-4 py-3 shrink-0 pb-safe">
+      <div className="bg-neutral-900 px-4 py-3 shrink-0 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
         <div className="flex items-end gap-3">
-          <button className="p-2 text-neutral-400 shrink-0">
+          <button className="p-2 text-neutral-400 shrink-0 hover:text-white transition-colors">
             <Mic className="w-6 h-6" />
           </button>
-          <div className="flex-1 bg-neutral-950 rounded-2xl flex items-center pr-2 border border-neutral-800">
+          <div className="flex-1 bg-neutral-950 rounded-2xl flex items-center pr-2 border border-neutral-800 focus-within:border-red-600/50 transition-colors">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onFocus={() => setShowEmoji(false)}
               placeholder="发消息..."
               className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none text-white"
             />
-            <button className="p-2 text-neutral-400">
+            <button
+              onClick={() => setShowEmoji(!showEmoji)}
+              className={`p-2 transition-colors ${showEmoji ? 'text-red-500' : 'text-neutral-400 hover:text-white'}`}
+            >
               <Smile className="w-5 h-5" />
             </button>
-            <button className="p-2 text-neutral-400">
+            <button className="p-2 text-neutral-400 hover:text-white transition-colors">
               <ImageIcon className="w-5 h-5" />
             </button>
           </div>
