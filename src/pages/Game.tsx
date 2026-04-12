@@ -20,6 +20,7 @@ function GameInner() {
   
   // Tabs: 'script' | 'map' | 'clues' | 'vote'
   const [activeTab, setActiveTab] = useState<'script' | 'map' | 'clues' | 'vote'>('script');
+  const [selectedClue, setSelectedClue] = useState<any>(null);
   
   // 悬浮聊天侧边栏
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -111,7 +112,8 @@ function GameInner() {
               <span className="text-xs text-neutral-500 flex items-center gap-1">
                 <Users className="w-3 h-3" /> {state.players.length} 人在线
               </span>
-            </div>
+              <ClueDetailOverlay clue={selectedClue} isOpen={!!selectedClue} onClose={() => setSelectedClue(null)} players={state.players} />
+    </div>
           </div>
         </div>
 
@@ -190,13 +192,24 @@ function GameInner() {
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 {unlockedClues.map((clue, idx) => (
-                  <div key={idx} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-lg group">
-                    <img src={clue.imageUrl} alt="clue" className="w-full h-32 object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <div
+                    key={idx}
+                    className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-lg group cursor-pointer active:scale-95 transition-transform"
+                    onClick={() => setSelectedClue({
+                      id: clue.id || idx.toString(),
+                      title: clue.name,
+                      image: clue.imageUrl || 'https://picsum.photos/seed/clue/400/600',
+                      description: clue.description,
+                      isPublic: false,
+                      type: '搜证线索'
+                    })}
+                  >
+                    <img src={clue.imageUrl || 'https://picsum.photos/seed/clue/400/600'} alt="clue" className="w-full h-32 object-cover opacity-80 group-hover:opacity-100 transition-opacity" referrerPolicy="no-referrer" />
                     <div className="p-3">
                       <h4 className="font-bold text-sm text-red-200 mb-1 line-clamp-1">{clue.name}</h4>
                       <p className="text-xs text-neutral-400 line-clamp-2">{clue.description}</p>
                       <button className="w-full mt-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-xs rounded-lg transition-colors flex items-center justify-center gap-1">
-                        <ArrowUpRight className="w-3 h-3" /> 公开分享
+                        <Search className="w-3 h-3" /> 查看详情
                       </button>
                     </div>
                   </div>
