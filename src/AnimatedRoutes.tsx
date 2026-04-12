@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import ScriptDetail from './pages/ScriptDetail';
+import ScriptReviews from './pages/ScriptReviews';
 import Room from './pages/Room';
 import Game from './pages/Game';
 import Result from './pages/Result';
@@ -60,6 +61,7 @@ export default function AnimatedRoutes() {
 
         <Route path="/lobby" element={<PageWrapper><Lobby /></PageWrapper>} />
         <Route path="/script/:id" element={<PageWrapper><ScriptDetail /></PageWrapper>} />
+        <Route path="/script/:id/reviews" element={<PageWrapper><ScriptReviews /></PageWrapper>} />
         <Route path="/room/:id" element={<PageWrapper><Room /></PageWrapper>} />
         <Route path="/game/:id" element={<PageWrapper><Game /></PageWrapper>} />
         <Route path="/result/:id" element={<PageWrapper><Result /></PageWrapper>} />
