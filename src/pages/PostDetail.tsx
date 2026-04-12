@@ -192,22 +192,43 @@ export default function PostDetail() {
           <h3 className="font-bold text-white mb-4 flex items-center gap-1">
             共 {comments.length} 条评论
           </h3>
-          
           <div className="space-y-5">
             {comments.map(comment => (
-              <div key={comment.id} className="flex gap-3 active:bg-neutral-900/50 p-2 -mx-2 rounded-xl transition-colors" onClick={() => showCommentOptions(comment)}>
-                <img src={comment.avatar} alt={comment.user} className="w-8 h-8 rounded-full object-cover shrink-0 active:scale-95 transition-transform" referrerPolicy="no-referrer" onClick={(e) => { e.stopPropagation(); navigate(`/user/${comment.authorId || 123}`); }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-neutral-500">{comment.user}</span>
-                    <button className="flex items-center gap-1 text-neutral-400 hover:text-red-500 transition-colors">
-                      <Heart className="w-3 h-3" />
-                      <span className="text-[10px]">{comment.likes}</span>
-                    </button>
+              <div key={comment.id} className="flex flex-col">
+                <div className="flex gap-3 active:bg-neutral-900/50 p-2 -mx-2 rounded-xl transition-colors" onClick={() => showCommentOptions(comment)}>
+                  <img src={comment.avatar} alt={comment.user} className="w-8 h-8 rounded-full object-cover shrink-0 active:scale-95 transition-transform" referrerPolicy="no-referrer" onClick={(e) => { e.stopPropagation(); navigate(`/user/${comment.authorId || 123}`); }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-neutral-500">{comment.user}</span>
+                      <button className="flex items-center gap-1 text-neutral-400 hover:text-red-500 transition-colors">
+                        <Heart className="w-3 h-3" />
+                        <span className="text-[10px]">{comment.likes}</span>
+                      </button>
+                    </div>
+                    <p className="text-sm text-white leading-relaxed">{comment.content}</p>
+                    <div className="text-[10px] text-neutral-400 mt-1">{comment.time}</div>
                   </div>
-                  <p className="text-sm text-white leading-relaxed">{comment.content}</p>
-                  <div className="text-[10px] text-neutral-400 mt-1">{comment.time}</div>
                 </div>
+                {/* 模拟楼中楼回复 */}
+                {(comment.id === "1" || comment.id === 1) && (
+                  <div className="ml-11 mt-1 flex flex-col gap-3 pl-3 border-l-2 border-neutral-800">
+                    <div className="flex gap-2 active:bg-neutral-900/50 p-1 -mx-1 rounded-xl transition-colors">
+                      <img src="https://picsum.photos/seed/reply1/40/40" className="w-5 h-5 rounded-full object-cover shrink-0" alt="reply" />
+                      <div className="flex-1 min-w-0">
+                         <span className="text-xs font-bold text-neutral-500 mr-1">小红帽:</span>
+                         <span className="text-xs text-white">确实，当时我也被这个点感动了！</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 active:bg-neutral-900/50 p-1 -mx-1 rounded-xl transition-colors">
+                      <img src="https://picsum.photos/seed/reply2/40/40" className="w-5 h-5 rounded-full object-cover shrink-0" alt="reply" />
+                      <div className="flex-1 min-w-0">
+                         <span className="text-xs font-bold text-neutral-500 mr-1">硬核推理狂 <span className="text-neutral-600 font-normal">回复</span> 小红帽:</span>
+                         <span className="text-xs text-white">我倒觉得推演有点生硬</span>
+                      </div>
+                    </div>
+                    <button className="text-[10px] text-blue-500 font-bold mt-1 text-left">展开全部 12 条回复</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
