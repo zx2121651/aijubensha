@@ -23,6 +23,7 @@ import UserProfile from './pages/UserProfile';
 import FollowersList from './pages/FollowersList';
 import ChatDetail from './pages/ChatDetail';
 import Wallet from './pages/Wallet';
+import WalletHistory from './pages/WalletHistory';
 import Inventory from './pages/Inventory';
 import Clubs from './pages/Clubs';
 
@@ -72,6 +73,7 @@ export default function AnimatedRoutes() {
         <Route path="/leaderboard" element={<PageWrapper><Leaderboard /></PageWrapper>} />
         <Route path="/post/:id" element={<PageWrapper><PostDetail /></PageWrapper>} />
         <Route path="/wallet" element={<PageWrapper><Wallet /></PageWrapper>} />
+        <Route path="/wallet/history" element={<PageWrapper><WalletHistory /></PageWrapper>} />
         <Route path="/inventory" element={<PageWrapper><Inventory /></PageWrapper>} />
         <Route path="/clubs" element={<PageWrapper><Clubs /></PageWrapper>} />
       </Routes>
