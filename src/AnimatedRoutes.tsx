@@ -18,6 +18,7 @@ import Achievements from './pages/Achievements';
 import Leaderboard from './pages/Leaderboard';
 import Lobby from './pages/Lobby';
 import PostDetail from './pages/PostDetail';
+import UserProfile from './pages/UserProfile';
 import Wallet from './pages/Wallet';
 import Inventory from './pages/Inventory';
 import Clubs from './pages/Clubs';
@@ -50,6 +51,7 @@ export default function AnimatedRoutes() {
           <Route path="/community" element={<PageWrapper><Community /></PageWrapper>} />
           <Route path="/messages" element={<PageWrapper><Messages /></PageWrapper>} />
           <Route path="/profile" element={<PageWrapper><Profile /></PageWrapper>} />
+          <Route path="/user/:id" element={<PageWrapper><UserProfile /></PageWrapper>} />
         </Route>
 
         <Route path="/lobby" element={<PageWrapper><Lobby /></PageWrapper>} />
