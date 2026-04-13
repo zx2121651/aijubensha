@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../modules/home/screens/home_screen.dart';
 import '../../modules/auth/screens/auth_screen.dart';
 import '../../modules/community/screens/community_screen.dart';
+import '../../modules/community/screens/post_detail_screen.dart';
+import '../../modules/user/screens/user_profile_screen.dart';
+import '../../modules/user/screens/followers_screen.dart';
+import '../../modules/chat/screens/chat_screen.dart';
 
 class AppRouter {
   static final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -54,7 +58,7 @@ class AppRouter {
             name: 'post_detail',
             pageBuilder: (context, state) {
               final id = state.pathParameters['id']!;
-              return buildPageWithDefaultTransition(context: context, state: state, child: Scaffold(body: Center(child: Text('Post $id'))));
+              return buildPageWithDefaultTransition(context: context, state: state, child: PostDetailScreen(postId: id));
             },
           ),
         ]
@@ -64,7 +68,24 @@ class AppRouter {
         name: 'user_profile',
         pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return buildPageWithDefaultTransition(context: context, state: state, child: Scaffold(body: Center(child: Text('User $id'))));
+          return buildPageWithDefaultTransition(context: context, state: state, child: UserProfileScreen(userId: id));
+        },
+      ),
+      GoRoute(
+        path: '/followers/:id',
+        name: 'followers_list',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final tab = state.uri.queryParameters['tab'] ?? 'fans';
+          return buildPageWithDefaultTransition(context: context, state: state, child: FollowersScreen(userId: id, initialTab: tab));
+        },
+      ),
+      GoRoute(
+        path: '/chat/:id',
+        name: 'chat_detail',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return buildPageWithDefaultTransition(context: context, state: state, child: ChatScreen(userId: id));
         },
       ),
       GoRoute(
