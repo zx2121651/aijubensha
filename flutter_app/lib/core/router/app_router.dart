@@ -8,6 +8,9 @@ import '../../modules/community/screens/post_detail_screen.dart';
 import '../../modules/user/screens/user_profile_screen.dart';
 import '../../modules/user/screens/followers_screen.dart';
 import '../../modules/chat/screens/chat_screen.dart';
+import '../../modules/script/screens/script_detail_screen.dart';
+import '../../modules/script/screens/script_reviews_screen.dart';
+import '../../modules/wallet/screens/wallet_history_screen.dart';
 
 class AppRouter {
   static final GlobalKey<NavigatorState> rootNavigatorKey =
@@ -89,11 +92,24 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: '/wallet/history',
+        name: 'wallet_history',
+        pageBuilder: (context, state) => buildPageWithDefaultTransition(context: context, state: state, child: const WalletHistoryScreen()),
+      ),
+      GoRoute(
+        path: '/script/:id/reviews',
+        name: 'script_reviews',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return buildPageWithDefaultTransition(context: context, state: state, child: ScriptReviewsScreen(scriptId: id));
+        },
+      ),
+      GoRoute(
         path: '/script/:id',
         name: 'script_detail',
         pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return buildPageWithDefaultTransition(context: context, state: state, child: Scaffold(body: Center(child: Text('Script $id'))));
+          return buildPageWithDefaultTransition(context: context, state: state, child: ScriptDetailScreen(scriptId: id));
         },
       ),
     ],
