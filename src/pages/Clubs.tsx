@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Users, Search, Plus, ChevronRight, Trophy, X, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBottomSheet } from '@/src/context/BottomSheetContext';
+import CreateClubBottomSheet from '@/src/components/club/CreateClubBottomSheet';
 
 export default function Clubs() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'my' | 'discover'>('discover');
+  const { showBottomSheet } = useBottomSheet();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newClubName, setNewClubName] = useState('');
   const [newClubDesc, setNewClubDesc] = useState('');
@@ -50,7 +53,7 @@ export default function Clubs() {
           <h1 className="text-xl font-bold text-neutral-900">俱乐部</h1>
         </div>
         <button 
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => showBottomSheet(<CreateClubBottomSheet />)}
           className="p-2 -mr-2 text-neutral-600 hover:text-neutral-900 transition-colors"
         >
           <Plus className="w-6 h-6" />

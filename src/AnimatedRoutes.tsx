@@ -29,6 +29,7 @@ import Wallet from './pages/Wallet';
 import WalletHistory from './pages/WalletHistory';
 import Inventory from './pages/Inventory';
 import Clubs from './pages/Clubs';
+import ClubDetail from './pages/club/ClubDetail';
 
 const PageWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -82,6 +83,7 @@ export default function AnimatedRoutes() {
         <Route path="/wallet/history" element={<PageWrapper><WalletHistory /></PageWrapper>} />
         <Route path="/inventory" element={<PageWrapper><Inventory /></PageWrapper>} />
         <Route path="/clubs" element={<PageWrapper><Clubs /></PageWrapper>} />
+        <Route path="/club/:id" element={<PageWrapper><ClubDetail /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
   );
