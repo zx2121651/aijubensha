@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { scripts } from '@/src/data/scripts';
 import { motion } from 'motion/react';
 import { useBottomSheet } from '@/src/context/BottomSheetContext';
+import GiftBottomSheet from '@/src/components/store/GiftBottomSheet';
+import { Gift } from 'lucide-react';
 
 export default function Result() {
   const { id } = useParams();
@@ -53,6 +55,9 @@ export default function Result() {
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-white">对局结算</h1>
           <div className="flex gap-2">
+            <button onClick={() => showBottomSheet(<GiftBottomSheet target={{ id: 'mvp1', name: '戏精本精', avatar: 'https://picsum.photos/seed/p1/100/100' }} />)} className="p-2 bg-neutral-800 rounded-full text-yellow-500 hover:text-yellow-400 transition-colors active:scale-95">
+              <Gift className="w-5 h-5" />
+            </button>
             <button onClick={handleShare} className="p-2 bg-neutral-800 rounded-full text-neutral-400 hover:text-white transition-colors active:scale-95">
               <Share2 className="w-5 h-5" />
             </button>
