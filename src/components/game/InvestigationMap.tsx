@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { motion, useAnimation } from 'motion/react';
+import { motion, useAnimation, AnimatePresence } from 'motion/react';
 import { Search, Loader2, Plus, Minus, MapPin, ZoomIn, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,7 @@ export default function InvestigationMap({ ap, onSearch }: InvestigationMapProps
 
   const [scale, setScale] = useState(1);
   const [searchingId, setSearchingId] = useState<string | null>(null);
+  const [flyingClue, setFlyingClue] = useState<{ id: string, x: number, y: number, img: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleZoomIn = () => setScale(prev => Math.min(prev + 0.5, 3));
@@ -55,7 +56,9 @@ export default function InvestigationMap({ ap, onSearch }: InvestigationMapProps
     setTargets(prev => prev.map(t => t.id === target.id ? { ...t, isSearched: true } : t));
 
     if (success) {
-       // Ideally we'd play a flying card animation here, handled parent side or via portal
+       // Fire flying animation
+       setFlyingClue({ id: target.id, x: target.x, y: target.y, img: 'https://picsum.photos/seed/clue/100/150' });
+       setTimeout(() => setFlyingClue(null), 1500); // clear after animation
     } else {
        alert(`在【${target.name}】翻找了一番，并没有发现有价值的线索。`);
     }
@@ -74,6 +77,40 @@ export default function InvestigationMap({ ap, onSearch }: InvestigationMapProps
            <span className="text-[10px] text-neutral-300">拖拽平移 / 双指缩放</span>
         </div>
       </div>
+
+            {/* Flying Clue Animation Overlay */}
+      <AnimatePresence>
+        {flyingClue && (
+          <motion.div
+            initial={{
+              opacity: 0,
+              scale: 0.5,
+              x: '-50%',
+              y: '-50%',
+              left: `${flyingClue.x}%`,
+              top: `${flyingClue.y}%`
+            }}
+            animate={{
+              opacity: [0, 1, 1, 0],
+              scale: [0.5, 1.2, 1, 0.2],
+              left: ['50%', '50%', '50%', '50%'], // center to bottom
+              top: ['50%', '50%', '40%', '150%'], // arc up then down
+            }}
+            transition={{
+              duration: 1.5,
+              times: [0, 0.3, 0.7, 1],
+              ease: "easeInOut"
+            }}
+            className="absolute z-50 pointer-events-none"
+            style={{ position: 'fixed' }} // attach to viewport
+          >
+            <div className="bg-white p-2 rounded-xl shadow-2xl rotate-12">
+              <img src={flyingClue.img} className="w-24 h-32 object-cover rounded-lg" alt="clue" />
+              <div className="text-center mt-2 text-xs font-bold text-black">+1 线索入包</div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Map Container */}
       <div
