@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, CheckCircle2, Image as ImageIcon, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBottomSheet } from '@/src/context/BottomSheetContext';
+import ItemPreviewBottomSheet from '@/src/components/store/ItemPreviewBottomSheet';
 
 export default function Inventory() {
   const navigate = useNavigate();
+  const { showBottomSheet } = useBottomSheet();
   const [activeTab, setActiveTab] = useState<'frames' | 'bubbles'>('frames');
   const [equippedFrame, setEquippedFrame] = useState('f1');
   const [equippedBubble, setEquippedBubble] = useState('b1');

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useBottomSheet } from '@/src/context/BottomSheetContext';
+import RechargeBottomSheet from '@/src/components/wallet/RechargeBottomSheet';
 import { ArrowLeft, Diamond, Coins, History, CreditCard, ChevronRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWalletBalance, getWalletHistory, rechargeWallet } from '@/src/api/user';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Wallet() {
+  const { showBottomSheet } = useBottomSheet();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'topup' | 'history'>('topup');
 
@@ -54,7 +57,7 @@ export default function Wallet() {
 
   const handleTopupClick = (opt: any) => {
     setSelectedOption(opt);
-    setIsTopupModalOpen(true);
+    showBottomSheet(<RechargeBottomSheet />);
     setIsSuccess(false);
   };
 

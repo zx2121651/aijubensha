@@ -9,6 +9,8 @@ import { GoogleGenAI } from '@google/genai';
 import ReactPlayer from 'react-player';
 import { motion, AnimatePresence } from 'motion/react';
 import RoomLobbyModal from '@/src/components/RoomLobbyModal';
+import { useBottomSheet } from '@/src/context/BottomSheetContext';
+import { useBottomSheet } from '@/src/context/BottomSheetContext';
 
 declare global {
   interface Window {
@@ -33,7 +35,34 @@ export default function ScriptDetail() {
 
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
+  const { showBottomSheet, hideBottomSheet } = useBottomSheet();
 
+  const showCharacterDetail = (char: any) => {
+    showBottomSheet(
+      <div className="flex flex-col gap-4 p-4 text-white relative min-h-[60vh]">
+        <button onClick={hideBottomSheet} className="absolute top-4 right-4 p-2 bg-black/40 rounded-full z-10"><X className="w-5 h-5" /></button>
+        <img src={char.avatar || 'https://picsum.photos/seed/1/300/400'} className="w-32 h-48 rounded-xl object-cover shadow-2xl mx-auto -mt-16 border-4 border-neutral-900 bg-neutral-800" alt={char.name} />
+        <div className="text-center">
+          <h2 className="text-2xl font-black">{char.name}</h2>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className="px-2 py-0.5 bg-neutral-800 text-neutral-300 text-xs rounded-full border border-neutral-700">{char.gender}</span>
+            <span className="px-2 py-0.5 bg-neutral-800 text-neutral-300 text-xs rounded-full border border-neutral-700">难度: 困难</span>
+          </div>
+        </div>
+        <div className="bg-neutral-800/50 p-4 rounded-2xl border border-neutral-800 mt-2">
+          <h3 className="text-sm font-bold text-red-500 flex items-center gap-1 mb-2"><Sparkles className="w-4 h-4"/> 人物小传</h3>
+          <p className="text-sm text-neutral-300 leading-relaxed text-justify">{char.desc || '深陷于过去的回忆无法自拔，直到那封神秘的信件打破了宁静。你将面临人性的考验与道德的抉择...'}</p>
+        </div>
+        <div className="bg-neutral-800/50 p-4 rounded-2xl border border-neutral-800">
+          <h3 className="text-sm font-bold text-blue-400 flex items-center gap-1 mb-2"><Star className="w-4 h-4"/> 特殊技能 (模拟)</h3>
+          <p className="text-sm text-neutral-300 leading-relaxed">【洞察】：在第一轮搜证中额外获得 2 点行动力 (AP)。</p>
+        </div>
+        <button className="w-full py-4 mt-auto bg-red-600 hover:bg-red-700 active:scale-95 transition-all text-white font-bold rounded-full shadow-[0_4px_14px_rgba(220,38,38,0.4)]" onClick={() => { hideBottomSheet(); setIsCreateRoomModalOpen(true); }}>
+          就选 TA 了，立即组局！
+        </button>
+      </div>
+    );
+  };
   // Room Creation Form State
   const [roomName, setRoomName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -832,7 +861,7 @@ export default function ScriptDetail() {
 
           <div className="space-y-4">
             {script.reviews && script.reviews.length > 0 ? (
-              script.reviews.map(review => (
+              script.reviews.slice(0, 2).map(review => (
                 <div key={review.id} className="bg-white p-4 rounded-xl shadow-sm border border-neutral-100">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">

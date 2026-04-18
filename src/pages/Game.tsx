@@ -20,6 +20,8 @@ function GameInner() {
   
   // Tabs: 'script' | 'map' | 'clues' | 'vote'
   const [activeTab, setActiveTab] = useState<'script' | 'map' | 'clues' | 'vote'>('script');
+  const [selectedClue, setSelectedClue] = useState<any>(null);
+  const [ap, setAp] = useState<number>(5);
   
   // 悬浮聊天侧边栏
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -46,6 +48,14 @@ function GameInner() {
       content: chatInput
     });
     setChatInput('');
+  };
+
+  const handlePerformSearch = async (target: any) => {
+    if (ap < target.cost) return false;
+    setAp(prev => prev - target.cost);
+    await new Promise(r => setTimeout(r, 1000)); // simulate network delay
+    // 模拟成功率 80%
+    return Math.random() > 0.2;
   };
 
   const handleSearchSpot = (spotName: string) => {
@@ -111,7 +121,8 @@ function GameInner() {
               <span className="text-xs text-neutral-500 flex items-center gap-1">
                 <Users className="w-3 h-3" /> {state.players.length} 人在线
               </span>
-            </div>
+              <ClueDetailOverlay clue={selectedClue} isOpen={!!selectedClue} onClose={() => setSelectedClue(null)} players={state.players} />
+    </div>
           </div>
         </div>
 
@@ -151,30 +162,8 @@ function GameInner() {
 
         {/* 2. 搜证地图视图 */}
         {activeTab === 'map' && (
-          <div className="max-w-2xl mx-auto h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Search className="w-5 h-5 text-blue-400" /> 庄园搜证地图</h2>
-            <div className="relative flex-1 min-h-[400px] bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden group">
-               {/* 模拟背景地图 */}
-               <img src="https://picsum.photos/seed/map1/800/600" className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity" alt="Map Map" />
-
-               {/* 搜证交互点 */}
-               <button onClick={() => handleSearchSpot('老爷书房')} className="absolute top-[30%] left-[20%] group/spot">
-                  <div className="w-4 h-4 bg-yellow-500 rounded-full animate-ping absolute inset-0" />
-                  <div className="w-4 h-4 bg-yellow-400 rounded-full relative z-10 border-2 border-neutral-900" />
-                  <span className="absolute top-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover/spot:opacity-100 transition-opacity">
-                    老爷书房
-                  </span>
-               </button>
-
-               <button onClick={() => handleSearchSpot('后花园')} className="absolute top-[60%] right-[30%] group/spot">
-                  <div className="w-4 h-4 bg-yellow-500 rounded-full animate-ping absolute inset-0" />
-                  <div className="w-4 h-4 bg-yellow-400 rounded-full relative z-10 border-2 border-neutral-900" />
-                  <span className="absolute top-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover/spot:opacity-100 transition-opacity">
-                    后花园
-                  </span>
-               </button>
-            </div>
-            <p className="text-xs text-neutral-500 text-center mt-4">点击高亮光点搜集环境线索</p>
+          <div className="absolute inset-0 pb-14 z-0">
+             <InvestigationMap ap={ap} onSearch={handlePerformSearch} />
           </div>
         )}
 
@@ -190,13 +179,24 @@ function GameInner() {
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 {unlockedClues.map((clue, idx) => (
-                  <div key={idx} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-lg group">
-                    <img src={clue.imageUrl} alt="clue" className="w-full h-32 object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <div
+                    key={idx}
+                    className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-lg group cursor-pointer active:scale-95 transition-transform"
+                    onClick={() => setSelectedClue({
+                      id: clue.id || idx.toString(),
+                      title: clue.name,
+                      image: clue.imageUrl || 'https://picsum.photos/seed/clue/400/600',
+                      description: clue.description,
+                      isPublic: false,
+                      type: '搜证线索'
+                    })}
+                  >
+                    <img src={clue.imageUrl || 'https://picsum.photos/seed/clue/400/600'} alt="clue" className="w-full h-32 object-cover opacity-80 group-hover:opacity-100 transition-opacity" referrerPolicy="no-referrer" />
                     <div className="p-3">
                       <h4 className="font-bold text-sm text-red-200 mb-1 line-clamp-1">{clue.name}</h4>
                       <p className="text-xs text-neutral-400 line-clamp-2">{clue.description}</p>
                       <button className="w-full mt-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-xs rounded-lg transition-colors flex items-center justify-center gap-1">
-                        <ArrowUpRight className="w-3 h-3" /> 公开分享
+                        <Search className="w-3 h-3" /> 查看详情
                       </button>
                     </div>
                   </div>
