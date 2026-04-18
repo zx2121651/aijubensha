@@ -11,6 +11,7 @@ import Room from './pages/Room';
 import Game from './pages/Game';
 import Result from './pages/Result';
 import Settings from './pages/Settings';
+import TicketSubmit from './pages/support/TicketSubmit';
 import Notifications from './pages/Notifications';
 import Discover from './pages/Discover';
 import Community from './pages/Community';
@@ -74,6 +75,7 @@ export default function AnimatedRoutes() {
         <Route path="/editor/project/:id" element={<PageWrapper><ProjectEditor /></PageWrapper>} />
         <Route path="/result/:id" element={<PageWrapper><Result /></PageWrapper>} />
         <Route path="/settings" element={<PageWrapper><Settings /></PageWrapper>} />
+        <Route path="/support/ticket" element={<PageWrapper><TicketSubmit /></PageWrapper>} />
         <Route path="/notifications" element={<PageWrapper><Notifications /></PageWrapper>} />
         <Route path="/store" element={<PageWrapper><Store /></PageWrapper>} />
         <Route path="/achievements" element={<PageWrapper><Achievements /></PageWrapper>} />

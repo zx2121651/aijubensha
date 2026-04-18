@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Volume2, Mic, Video, Bell, Trash2, LogOut, Info, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Volume2, Mic, Video, Bell, Trash2, LogOut, Info, CheckCircle2, MessageSquareWarning, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Settings() {
@@ -151,6 +151,13 @@ export default function Settings() {
             <button className="w-full flex items-center justify-between py-3 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg px-2 transition-colors">
               <div className="flex items-center gap-3">
                 <Info className="w-4 h-4 text-neutral-500" />
+            <button className="w-full flex items-center justify-between py-3 text-sm text-neutral-700 hover:bg-neutral-50 rounded-lg px-2 transition-colors" onClick={() => navigate('/support/ticket')}>
+              <div className="flex items-center gap-3">
+                <MessageSquareWarning className="w-4 h-4 text-neutral-500" />
+                联系客服与反馈
+              </div>
+              <span className="text-xs text-neutral-400"><ChevronRight className="w-4 h-4" /></span>
+            </button>
                 关于我们
               </div>
               <span className="text-xs text-neutral-400">v1.2.0</span>
