@@ -6,6 +6,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 // Placeholder components for pages
 import Dashboard from './pages/Dashboard';
 import UserManage from './pages/UserManage';
+import RoomMonitor from './pages/RoomMonitor';
 import ScriptManage from './pages/ScriptManage';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="users" element={<UserManage />} />
             <Route path="scripts" element={<ScriptManage />} />
+          <Route path="rooms" element={<RoomMonitor />} />
             <Route path="rooms" element={<div className="p-4 text-center text-gray-500">房间监控开发中...</div>} />
           </Route>
         </Routes>

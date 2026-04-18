@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, PlayCircle, Plus, Eye, Share2, MousePointer2, Move, Type, HelpCircle, Activity, FileJson, Users, Map, Settings } from 'lucide-react';
+import { ArrowLeft, Save, PlayCircle, Plus, Eye, Share2, MousePointer2, Move, Type, HelpCircle, Activity, FileJson, Users, Map, Settings, FolderOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useBottomSheet } from '@/src/context/BottomSheetContext';
+import AssetManagerDrawer from '@/src/pages/editor/AssetManagerDrawer';
 
 export default function ProjectEditor() {
   const { id } = useParams();
@@ -124,6 +125,9 @@ export default function ProjectEditor() {
           </button>
           <button title="线索与地图管理" onClick={() => alert('打开地图搜证配置')} className="p-3 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors">
             <Map className="w-5 h-5" />
+          </button>
+          <button title="多媒体素材库" onClick={() => showBottomSheet(<AssetManagerDrawer />)} className="p-3 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors mt-4">
+            <FolderOpen className="w-5 h-5" />
           </button>
         </aside>
 
